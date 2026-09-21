@@ -1,0 +1,439 @@
+<title>Hölder Divergence Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg:#F4F5F7; --panel:#FFFFFF; --ink:#1D2230; --muted:#66707F; --rule:#D9DDE4;
+  --accent:#1F8A8A; --code-bg:#EEF1F4; --note-bg:#FBF5E4; --note-edge:#E4CF8E;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#14171C; --panel:#1B1F26; --ink:#E7E9EE; --muted:#98A1AF; --rule:#2E343E;
+    --accent:#6CC7C0; --code-bg:#242A33; --note-bg:#2A2718; --note-edge:#6B5B2A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#14171C; --panel:#1B1F26; --ink:#E7E9EE; --muted:#98A1AF; --rule:#2E343E;
+  --accent:#6CC7C0; --code-bg:#242A33; --note-bg:#2A2718; --note-edge:#6B5B2A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans", "Noto Sans TC", "PingFang TC", system-ui, sans-serif;
+  font-size:15px; line-height:1.6; padding-inline:clamp(16px, 4vw, 48px); padding-block:40px 72px;
+}
+main { max-width:1180px; margin:0 auto; }
+.eyebrow { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin:0 0 10px; }
+h1 { font-family:"IBM Plex Serif", Georgia, serif; font-weight:600; font-size:clamp(24px, 3.2vw, 34px); line-height:1.2; margin:0 0 10px; text-wrap:balance; }
+.lead { color:var(--muted); margin:0 0 28px; max-width:68ch; }
+.lead em { font-family:"IBM Plex Serif", Georgia, serif; }
+figure { margin:0; background:var(--panel); border:1px solid var(--rule); border-radius:14px; padding:18px 18px 12px; }
+.scroll { overflow-x:auto; }
+svg.fig { display:block; width:100%; min-width:980px; height:auto; color:var(--ink); }
+figcaption { font-size:13.5px; color:var(--muted); margin-top:12px; line-height:1.55; max-width:none; }
+figcaption b { color:var(--ink); font-weight:600; font-family:"IBM Plex Serif", Georgia, serif; }
+
+/* svg text roles */
+.fig text { font-family:"IBM Plex Sans", system-ui, sans-serif; fill:currentColor; }
+.fig .panel { font-size:15px; font-weight:500; }
+.fig .block { font-size:14.5px; font-weight:500; fill:#1D2230; }
+.fig .chan { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:8.5px; fill:currentColor; opacity:.75; }
+.fig .leg { font-size:10.5px; }
+.fig .math { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:19px; }
+.fig .mathbox { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:17px; fill:#1D2230; }
+.fig .sub { font-size:11px; font-style:normal; }
+.fig .dots { font-size:20px; font-weight:600; }
+.fig .mod { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:9px; opacity:.7; }
+.fig .avg { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:12.5px; }
+.fig .loss { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:19px; fill:#1D2230; }
+.fig .loss-sub { font-family:"IBM Plex Serif", Georgia, serif; font-size:10.5px; fill:#1D2230; }
+.fig .loss-big { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:22px; }
+.fig .subtitle { font-size:10px; opacity:.75; }
+.fig .chan-i { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:8px; opacity:.75; }
+.fig .panel-sm { font-size:13px; font-weight:500; }
+.fig .small { font-size:10.5px; opacity:.8; }
+.fig .small-em { font-size:10.5px; font-weight:600; }
+.fig .small-sub { font-size:8px; opacity:.8; font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; }
+.fig .mathbox-sm { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:14px; fill:#1D2230; }
+.fig .chan-in { font-family:"IBM Plex Mono", ui-monospace, monospace; font-style:normal; font-size:9px; }
+.fig .avg-sm { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:11px; }
+.fig .block-sm { font-size:12px; font-weight:600; fill:#1D2230; }
+.fig .loss-sm { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:15px; fill:#1D2230; }
+.fig .eqtext { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:13.5px; }
+.fig .eqtext .sub, .fig .mathbox-sm .sub { font-size:9px; }
+.fig .small .sub { font-size:8px; }
+.fig .loss-sm .loss-sub { font-size:9px; }
+.fig.fig2 { min-width:1020px; }
+.compare { font-size:14px; }
+.compare td:first-child { font-style:normal; font-family:"IBM Plex Sans", system-ui, sans-serif; font-size:14px; font-weight:600; white-space:normal; min-width:130px; }
+.tag { display:inline-block; font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; padding:1px 7px; border-radius:99px; border:1px solid var(--rule); color:var(--muted); margin-left:8px; vertical-align:2px; }
+
+section { margin-top:36px; }
+h2 { font-family:"IBM Plex Serif", Georgia, serif; font-weight:600; font-size:20px; margin:0 0 6px; }
+.lede { color:var(--muted); margin:0 0 16px; max-width:70ch; }
+table { width:100%; border-collapse:collapse; font-size:14px; }
+th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--rule); vertical-align:top; }
+th { font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:500; }
+td:first-child { white-space:nowrap; font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:15px; }
+code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; background:var(--code-bg); padding:1px 5px; border-radius:4px; }
+.tablewrap { overflow-x:auto; }
+.note { background:var(--note-bg); border-left:3px solid var(--note-edge); padding:12px 16px; border-radius:0 8px 8px 0; margin-top:16px; font-size:14px; }
+.note ul { margin:6px 0 0; padding-left:20px; }
+.note li + li { margin-top:4px; }
+.eq { font-family:"IBM Plex Serif", Georgia, serif; font-style:italic; font-size:16px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-top:14px; }
+.card { background:var(--panel); border:1px solid var(--rule); border-radius:10px; padding:14px 16px; }
+.card h3 { margin:0 0 6px; font-size:14px; font-weight:600; }
+.card p { margin:0; font-size:13.5px; color:var(--muted); }
+.sw { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:6px; border:1px solid rgba(0,0,0,.08); }
+</style>
+
+<main>
+  <p class="eyebrow">Cheng et al. · IEEE/CAA JAS · Fig. 1</p>
+  <h1>Hölder Divergence Framework</h1>
+  <p class="lead">Framework for Robust Brain Tumor Segmentation with Incomplete MRI Modalities Using Hölder Divergence and Mutual Information-Enhanced Knowledge Transfer — 依論文 Fig. 1 重繪；左上的 U-Net inset 改畫成這份程式碼實際使用的 3D U-Net（通道 16 → 128、GroupNorm、trilinear 上採樣）。</p>
+
+  <figure>
+    <div class="scroll">
+      <svg class="fig" viewBox="0 0 1340 770" role="img" aria-label="每個模態 x_i 各自經過共用的 Encoder 得到深層特徵 d_i，再經共用的 Decoder 得到單模態分割 h_i；DC 模組融合可用的 h_i 產生 Ŷ，與標籤 Y 計算 Dice 與 Hölder divergence 損失；各 d_i 與其平均 d_f 之間計算互資訊損失。" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>
+  <marker id="arB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3B7DD8"/></marker>
+  <marker id="arG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8BC34A"/></marker>
+  <marker id="arO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#F4A261"/></marker>
+  <marker id="arR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#D9A5A5"/></marker>
+  <marker id="arT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5FB3BA"/></marker>
+  <marker id="arGy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9AA1AB"/></marker>
+  <marker id="arK" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+  <linearGradient id="frame" x1="0" x2="1" y1="0" y2="0"><stop offset="0.5" stop-color="#8FB3D9"/><stop offset="0.5" stop-color="#D9A5A5"/></linearGradient>
+  <clipPath id="thumb"><rect x="0" y="0" width="56" height="56" rx="4"/></clipPath>
+</defs>
+<rect x="30" y="18" width="928" height="314" rx="14" fill="none" stroke="url(#frame)" stroke-width="1.6"/>
+<text x="300" y="58" class="panel" text-anchor="middle" >Encoder</text>
+<text x="735" y="58" class="panel" text-anchor="middle" >Decoder</text>
+<line x1="510" y1="46" x2="510" y2="326" stroke="currentColor" stroke-width="1" stroke-dasharray="3 4" opacity="0.7" fill="none"/>
+<text x="510" y="37" class="subtitle" text-anchor="middle" >3D U-Net as implemented · width 0.5 · GroupNorm(8) per modality · trilinear ×2</text>
+<text x="70" y="111" class="chan" text-anchor="middle" >128³</text>
+<text x="70" y="193" class="chan" text-anchor="middle" >64³</text>
+<text x="70" y="247" class="chan" text-anchor="middle" >32³</text>
+<text x="70" y="289" class="chan" text-anchor="middle" >16³</text>
+<text x="70" y="319" class="chan" text-anchor="middle" >8³</text>
+<polygon points="96,68.0 101,63.0 104,63.0 99,68.0" fill="#b7dee2" stroke="none"/>
+<polygon points="99,68.0 104,63.0 104,143.0 99,148.0" fill="#6d9ea3" stroke="none"/>
+<rect x="96" y="68.0" width="3" height="80" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="100.0" y="59.0" class="chan" text-anchor="middle" >1</text>
+<line x1="105" y1="108" x2="115" y2="108" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="116,68.0 121,63.0 127,63.0 122,68.0" fill="#b7dee2" stroke="none"/>
+<polygon points="122,68.0 127,63.0 127,143.0 122,148.0" fill="#6d9ea3" stroke="none"/>
+<rect x="116" y="68.0" width="6" height="80" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="121.5" y="59.0" class="chan" text-anchor="middle" >16</text>
+<line x1="128" y1="108" x2="137" y2="108" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="138,68.0 143,63.0 149,63.0 144,68.0" fill="#b7dee2" stroke="none"/>
+<polygon points="144,68.0 149,63.0 149,143.0 144,148.0" fill="#6d9ea3" stroke="none"/>
+<rect x="138" y="68.0" width="6" height="80" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="143.5" y="59.0" class="chan" text-anchor="middle" >16</text>
+<line x1="142" y1="150.0" x2="168" y2="163.0" stroke="#F4A261" stroke-width="1.4" marker-end="url(#arO)" opacity="1" fill="none"/>
+<polygon points="168,164.0 173,159.0 182,159.0 177,164.0" fill="#b7dee2" stroke="none"/>
+<polygon points="177,164.0 182,159.0 182,211.0 177,216.0" fill="#6d9ea3" stroke="none"/>
+<rect x="168" y="164.0" width="9" height="52" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="175.0" y="155.0" class="chan" text-anchor="middle" >32</text>
+<line x1="183" y1="190" x2="195" y2="190" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="196,164.0 201,159.0 210,159.0 205,164.0" fill="#b7dee2" stroke="none"/>
+<polygon points="205,164.0 210,159.0 210,211.0 205,216.0" fill="#6d9ea3" stroke="none"/>
+<rect x="196" y="164.0" width="9" height="52" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="203.0" y="155.0" class="chan" text-anchor="middle" >32</text>
+<line x1="202" y1="218.0" x2="224" y2="225.0" stroke="#F4A261" stroke-width="1.4" marker-end="url(#arO)" opacity="1" fill="none"/>
+<polygon points="224,226.0 229,221.0 242,221.0 237,226.0" fill="#b7dee2" stroke="none"/>
+<polygon points="237,226.0 242,221.0 242,257.0 237,262.0" fill="#6d9ea3" stroke="none"/>
+<rect x="224" y="226.0" width="13" height="36" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="233.0" y="217.0" class="chan" text-anchor="middle" >64</text>
+<line x1="243" y1="244" x2="255" y2="244" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="256,226.0 261,221.0 274,221.0 269,226.0" fill="#b7dee2" stroke="none"/>
+<polygon points="269,226.0 274,221.0 274,257.0 269,262.0" fill="#6d9ea3" stroke="none"/>
+<rect x="256" y="226.0" width="13" height="36" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="265.0" y="217.0" class="chan" text-anchor="middle" >64</text>
+<line x1="264" y1="264.0" x2="288" y2="274.0" stroke="#F4A261" stroke-width="1.4" marker-end="url(#arO)" opacity="1" fill="none"/>
+<polygon points="288,275.0 293,270.0 313,270.0 308,275.0" fill="#b7dee2" stroke="none"/>
+<polygon points="308,275.0 313,270.0 313,292.0 308,297.0" fill="#6d9ea3" stroke="none"/>
+<rect x="288" y="275.0" width="20" height="22" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="300.5" y="266.0" class="chan" text-anchor="middle" >128</text>
+<line x1="314" y1="286" x2="329" y2="286" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="330,275.0 335,270.0 355,270.0 350,275.0" fill="#b7dee2" stroke="none"/>
+<polygon points="350,275.0 355,270.0 355,292.0 350,297.0" fill="#6d9ea3" stroke="none"/>
+<rect x="330" y="275.0" width="20" height="22" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="342.5" y="266.0" class="chan" text-anchor="middle" >128</text>
+<line x1="342" y1="299.0" x2="400" y2="309.0" stroke="#F4A261" stroke-width="1.4" marker-end="url(#arO)" opacity="1" fill="none"/>
+<polygon points="400,310.0 405,305.0 425,305.0 420,310.0" fill="#b7dee2" stroke="none"/>
+<polygon points="420,310.0 425,305.0 425,317.0 420,322.0" fill="#6d9ea3" stroke="none"/>
+<rect x="400" y="310.0" width="20" height="12" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="412.5" y="301.0" class="chan" text-anchor="middle" >128</text>
+<line x1="426" y1="316" x2="547" y2="316" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<text x="487" y="306" class="chan" text-anchor="middle" >bottleneck 128 @ 8³ → d</text>
+<text x="546" y="308" class="chan-i" text-anchor="start">i</text>
+<polygon points="548,310.0 553,305.0 573,305.0 568,310.0" fill="#b7dee2" stroke="none"/>
+<polygon points="568,310.0 573,305.0 573,317.0 568,322.0" fill="#6d9ea3" stroke="none"/>
+<rect x="548" y="310.0" width="20" height="12" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="560.5" y="301.0" class="chan" text-anchor="middle" >128</text>
+<rect x="545" y="302.0" width="31" height="23" rx="2" fill="none" stroke="#5FB3BA" stroke-width="1.3" stroke-dasharray="3 2"/>
+<line x1="576" y1="307.0" x2="602" y2="299.0" stroke="#D9A5A5" stroke-width="1.4" marker-end="url(#arR)" opacity="1" fill="none"/>
+<polygon points="598,275.0 603,270.0 623,270.0 618,275.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="618,275.0 623,270.0 623,292.0 618,297.0" fill="#a98080" stroke="none"/>
+<rect x="598" y="275.0" width="20" height="22" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<polygon points="618,275.0 623,270.0 643,270.0 638,275.0" fill="#b7dee2" stroke="none"/>
+<polygon points="638,275.0 643,270.0 643,292.0 638,297.0" fill="#6d9ea3" stroke="none"/>
+<rect x="618" y="275.0" width="20" height="22" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="620.5" y="266.0" class="chan" text-anchor="middle" >128+128</text>
+<line x1="644" y1="286" x2="663" y2="286" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="664,275.0 669,270.0 689,270.0 684,275.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="684,275.0 689,270.0 689,292.0 684,297.0" fill="#a98080" stroke="none"/>
+<rect x="664" y="275.0" width="20" height="22" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<text x="676.5" y="266.0" class="chan" text-anchor="middle" >128</text>
+<line x1="690" y1="286" x2="711" y2="286" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="712,275.0 717,270.0 730,270.0 725,275.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="725,275.0 730,270.0 730,292.0 725,297.0" fill="#a98080" stroke="none"/>
+<rect x="712" y="275.0" width="13" height="22" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<text x="721.0" y="266.0" class="chan" text-anchor="middle" >64</text>
+<line x1="722" y1="272.0" x2="740" y2="264.0" stroke="#D9A5A5" stroke-width="1.4" marker-end="url(#arR)" opacity="1" fill="none"/>
+<polygon points="736,226.0 741,221.0 754,221.0 749,226.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="749,226.0 754,221.0 754,257.0 749,262.0" fill="#a98080" stroke="none"/>
+<rect x="736" y="226.0" width="13" height="36" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<polygon points="749,226.0 754,221.0 767,221.0 762,226.0" fill="#b7dee2" stroke="none"/>
+<polygon points="762,226.0 767,221.0 767,257.0 762,262.0" fill="#6d9ea3" stroke="none"/>
+<rect x="749" y="226.0" width="13" height="36" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="751.5" y="217.0" class="chan" text-anchor="middle" >64+64</text>
+<line x1="768" y1="244" x2="787" y2="244" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="788,226.0 793,221.0 806,221.0 801,226.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="801,226.0 806,221.0 806,257.0 801,262.0" fill="#a98080" stroke="none"/>
+<rect x="788" y="226.0" width="13" height="36" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<text x="797.0" y="217.0" class="chan" text-anchor="middle" >64</text>
+<line x1="807" y1="244" x2="825" y2="244" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="826,226.0 831,221.0 840,221.0 835,226.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="835,226.0 840,221.0 840,257.0 835,262.0" fill="#a98080" stroke="none"/>
+<rect x="826" y="226.0" width="9" height="36" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<text x="833.0" y="217.0" class="chan" text-anchor="middle" >32</text>
+<line x1="832" y1="223.0" x2="838" y2="218.0" stroke="#D9A5A5" stroke-width="1.4" marker-end="url(#arR)" opacity="1" fill="none"/>
+<polygon points="832,164.0 837,159.0 846,159.0 841,164.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="841,164.0 846,159.0 846,211.0 841,216.0" fill="#a98080" stroke="none"/>
+<rect x="832" y="164.0" width="9" height="52" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<polygon points="841,164.0 846,159.0 855,159.0 850,164.0" fill="#b7dee2" stroke="none"/>
+<polygon points="850,164.0 855,159.0 855,211.0 850,216.0" fill="#6d9ea3" stroke="none"/>
+<rect x="841" y="164.0" width="9" height="52" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="843.5" y="155.0" class="chan" text-anchor="middle" >32+32</text>
+<line x1="856" y1="190" x2="871" y2="190" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="872,164.0 877,159.0 886,159.0 881,164.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="881,164.0 886,159.0 886,211.0 881,216.0" fill="#a98080" stroke="none"/>
+<rect x="872" y="164.0" width="9" height="52" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<text x="879.0" y="155.0" class="chan" text-anchor="middle" >32</text>
+<line x1="887" y1="190" x2="903" y2="190" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="904,164.0 909,159.0 915,159.0 910,164.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="910,164.0 915,159.0 915,211.0 910,216.0" fill="#a98080" stroke="none"/>
+<rect x="904" y="164.0" width="6" height="52" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<text x="909.5" y="155.0" class="chan" text-anchor="middle" >16</text>
+<line x1="908" y1="161.0" x2="890" y2="150.0" stroke="#D9A5A5" stroke-width="1.4" marker-end="url(#arR)" opacity="1" fill="none"/>
+<polygon points="874,68.0 879,63.0 885,63.0 880,68.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="880,68.0 885,63.0 885,143.0 880,148.0" fill="#a98080" stroke="none"/>
+<rect x="874" y="68.0" width="6" height="80" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<polygon points="880,68.0 885,63.0 891,63.0 886,68.0" fill="#b7dee2" stroke="none"/>
+<polygon points="886,68.0 891,63.0 891,143.0 886,148.0" fill="#6d9ea3" stroke="none"/>
+<rect x="880" y="68.0" width="6" height="80" rx="0" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="882.5" y="59.0" class="chan" text-anchor="middle" >16+16</text>
+<line x1="892" y1="108" x2="903" y2="108" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="904,68.0 909,63.0 915,63.0 910,68.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="910,68.0 915,63.0 915,143.0 910,148.0" fill="#a98080" stroke="none"/>
+<rect x="904" y="68.0" width="6" height="80" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<text x="909.5" y="59.0" class="chan" text-anchor="middle" >16</text>
+<line x1="916" y1="108" x2="923" y2="108" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<polygon points="924,68.0 929,63.0 935,63.0 930,68.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="930,68.0 935,63.0 935,143.0 930,148.0" fill="#a98080" stroke="none"/>
+<rect x="924" y="68.0" width="6" height="80" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<text x="929.5" y="59.0" class="chan" text-anchor="middle" >16</text>
+<line x1="936" y1="108" x2="943" y2="108" stroke="#8BC34A" stroke-width="1.4" marker-end="url(#arG)" opacity="1" fill="none"/>
+<polygon points="944,68.0 949,63.0 952,63.0 947,68.0" fill="#e7c7c7" stroke="none"/>
+<polygon points="947,68.0 952,63.0 952,143.0 947,148.0" fill="#a98080" stroke="none"/>
+<rect x="944" y="68.0" width="3" height="80" rx="0" fill="#D9A5A5" stroke="none" opacity="1" />
+<text x="948.0" y="59.0" class="chan" text-anchor="middle" >3</text>
+<line x1="152" y1="108" x2="871" y2="108" stroke="#9AA1AB" stroke-width="1.1" stroke-dasharray="5 4" marker-end="url(#arGy)" opacity="1" fill="none"/>
+<line x1="213" y1="190" x2="829" y2="190" stroke="#9AA1AB" stroke-width="1.1" stroke-dasharray="5 4" marker-end="url(#arGy)" opacity="1" fill="none"/>
+<line x1="277" y1="244" x2="733" y2="244" stroke="#9AA1AB" stroke-width="1.1" stroke-dasharray="5 4" marker-end="url(#arGy)" opacity="1" fill="none"/>
+<line x1="358" y1="286" x2="595" y2="286" stroke="#9AA1AB" stroke-width="1.1" stroke-dasharray="5 4" marker-end="url(#arGy)" opacity="1" fill="none"/>
+<line x1="100" y1="266" x2="124" y2="266" stroke="#3B7DD8" stroke-width="1.4" marker-end="url(#arB)" opacity="1" fill="none"/>
+<text x="131" y="269.5" class="leg" text-anchor="start" >Conv3d 3³ + GN + ReLU</text>
+<line x1="100" y1="280" x2="124" y2="280" stroke="#F4A261" stroke-width="1.4" marker-end="url(#arO)" opacity="1" fill="none"/>
+<text x="131" y="283.5" class="leg" text-anchor="start" >MaxPool3d 2³</text>
+<line x1="100" y1="294" x2="124" y2="294" stroke="#D9A5A5" stroke-width="1.4" marker-end="url(#arR)" opacity="1" fill="none"/>
+<text x="131" y="297.5" class="leg" text-anchor="start" >trilinear ×2</text>
+<line x1="100" y1="308" x2="124" y2="308" stroke="#9AA1AB" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arGy)" opacity="1" fill="none"/>
+<text x="131" y="311.5" class="leg" text-anchor="start" >concat skip</text>
+<line x1="100" y1="322" x2="124" y2="322" stroke="#8BC34A" stroke-width="1.4" marker-end="url(#arG)" opacity="1" fill="none"/>
+<text x="131" y="325.5" class="leg" text-anchor="start" >Conv3d 1³ → 3 (WT, TC, ET)</text>
+<rect x="968" y="18" width="342" height="314" rx="14" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".45"/>
+<text x="1262" y="62" class="loss-big" text-anchor="middle" dx="-6">ℒ</text>
+<text x="1268" y="66" class="loss-sub" text-anchor="start">MI</text>
+<rect x="995" y="42" width="56" height="262" rx="8" fill="#EDEEF0" stroke="none" opacity="1" />
+<rect x="1000" y="54" width="46" height="32" rx="6" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="1023" y="75" class="mathbox" text-anchor="middle">d<tspan class="sub" dy="5">1</tspan></text>
+<rect x="1000" y="112" width="46" height="32" rx="6" fill="#B7C9E8" stroke="none" opacity="1" />
+<text x="1023" y="133" class="mathbox" text-anchor="middle">d<tspan class="sub" dy="5">2</tspan></text>
+<text x="1023" y="192" class="dots" text-anchor="middle" >⋮</text>
+<rect x="1000" y="228" width="46" height="32" rx="6" fill="#7FA3D0" stroke="none" opacity="1" />
+<text x="1023" y="249" class="mathbox" text-anchor="middle">d<tspan class="sub" dy="5">n</tspan></text>
+<rect x="1218" y="150" width="66" height="40" rx="8" fill="#EDEEF0" stroke="none" opacity="1" />
+<text x="1246" y="176" class="loss" text-anchor="middle" dx="-4">ℒ</text>
+<text x="1252" y="179" class="loss-sub" text-anchor="start">MI</text>
+<rect x="1206" y="196" width="66" height="40" rx="8" fill="#EDEEF0" stroke="none" opacity="0.8" />
+<text x="1234" y="222" class="loss" text-anchor="middle" dx="-4">ℒ</text>
+<text x="1240" y="225" class="loss-sub" text-anchor="start">MI</text>
+<polyline points="1046,70 1175,70 1175,160 1218,160" stroke="#5FB3BA" stroke-width="1.4" opacity="1" fill="none"/>
+<polyline points="1046,128 1160,128 1160,180 1218,180" stroke="#8FA8D6" stroke-width="1.4" opacity="1" fill="none"/>
+<polyline points="1046,186 1120,186 1120,206 1206,206" stroke="currentColor" stroke-width="1.2" opacity="1" fill="none"/>
+<polyline points="1046,244 1130,244 1130,226 1206,226" stroke="#7FA3D0" stroke-width="1.4" opacity="1" fill="none"/>
+<polyline points="1023,260 1023,296 1050,296" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)" opacity="1" fill="none"/>
+<circle cx="1068" cy="296" r="16" fill="none" stroke="currentColor" stroke-width="1.2"/>
+<text x="1068" y="300" class="avg" text-anchor="middle" >Avg</text>
+<line x1="1085" y1="296" x2="1116" y2="296" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)" opacity="1" fill="none"/>
+<rect x="1118" y="280" width="46" height="32" rx="6" fill="#B9DCA5" stroke="none" opacity="1" />
+<text x="1141" y="295" class="mathbox" text-anchor="middle">d<tspan class="sub" dy="5">f</tspan></text>
+<line x1="1141" y1="278" x2="1141" y2="78" stroke="#8BC34A" stroke-width="1.6" opacity="1" fill="none"/>
+<line x1="1141" y1="84" x2="1141" y2="72" stroke="#8BC34A" stroke-width="1.6" marker-end="url(#arG)" opacity="1" fill="none"/>
+<line x1="1141" y1="142" x2="1141" y2="130" stroke="#8BC34A" stroke-width="1.6" marker-end="url(#arG)" opacity="1" fill="none"/>
+<line x1="1141" y1="200" x2="1141" y2="188" stroke="#8BC34A" stroke-width="1.6" marker-end="url(#arG)" opacity="1" fill="none"/>
+<line x1="1141" y1="258" x2="1141" y2="246" stroke="#8BC34A" stroke-width="1.6" marker-end="url(#arG)" opacity="1" fill="none"/>
+<rect x="30" y="356" width="1280" height="396" rx="16" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".45"/>
+<text x="82" y="418" class="math" text-anchor="middle">x<tspan class="sub" dy="5">1</tspan></text>
+<g transform="translate(114,384)"><rect width="56" height="56" rx="4" fill="#0b0d12"/><image href="data:image/png;base64,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" width="56" height="56" clip-path="url(#thumb)" preserveAspectRatio="xMidYMid slice"/></g>
+<text x="142" y="450" class="mod" text-anchor="middle">FLAIR</text>
+<line x1="178" y1="412" x2="292" y2="412" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<text x="82" y="490" class="math" text-anchor="middle">x<tspan class="sub" dy="5">2</tspan></text>
+<g transform="translate(114,456)"><rect width="56" height="56" rx="4" fill="#0b0d12"/><image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAAAAADH8yjkAAAX0UlEQVR42p2aWaxe13Xf1573Gb75uyMvJ5HUQIuiBsqWXSeG4CCBHdh1ExR1kKJAYaRFULTpQ1/6FvSlKVr0och7iqIJggZV2qAuEDuxncS2LFmyKFvmJE6X9/LyDt94xj3vPriOLZGSA3/PB+t/1lpnn/Ot/28h+PAfigDAiAIA6JwpSd6SF9r57KmX1Mq+baWs7u/dCLc/LMDPDJ9dfHEQvzaluSarmRANquvnPo4uX9kc9MCjy8tNpG7u3onx5xBAEdD5k+JUWQa6Xg9/88aXt+lBd+1jv34K/k0z0v3uaLK/GMhyasj3vk/8z5EB3biwgt0cdbuCTNXnfwPe2N6FzzwO8L++cq5jIxVqT8ocTWe+/st3PyjGB2YWyUfWNhxK6g7pr88sQfIP+Scv6WIF4Pq3ThHEPMsYb7IszZMm+8Kb37KPLBP5wNtnH9sCwvvMBdSp9hLWPNj/4VtbuBSHX30lTaT2S23JaG3oLckYhKAPH1kO8gF1y59+epWNBp0kINFdLEBZCBb78gX4469cgUSQsgBohESNFxFQdGqY3H+UAnp0c09fxAMqA6XRYeD7TXQr1jPBkudv3O2uAFDvW+NWhwicFryr71qV0Bt/tkDx75RBfu4pyQJYwB7xgDylkSHRT7yBgyUw8JRK0UkFJQjQctlwlqAsZdnxnRrHnymA4OQnxhFj70lCCIqOO5bSHpWmVZHwbLedL0qIEbGUAoFqBm4ead4LR7U7dk/9zAxwPP0Mph4IRjIKbiwNUCxcXc8Uh8Q1xOdCzRpTL40kAYXoDAlFFdGBsSTZWlTxwwVQPH4xJ0gZTAkn4ImLWM2jalHCsuBszfOcd4ZAQ/Q8jy1hwhvXsl4zn92KPXUSTQP6EAEUn3xBIIaJwxCSvmck2hhMxXtDScIsMEIcJ2mS4iTLUmsVJ9BxDrFsWd9VhIPssf33PDnvz+DFxxSOBjBCgLljXAcfSEZlahWoEglim8rQhAqG01guvcfepwTnZT2vehlfT/ExdfDTCuS9/f3IswihPKiI674wDJApC6BhoPeKurZekLAwKVBaeCa017UrNO963a8e2EoaRhb3U7qxqopHC6C4eckH1LTDDVcKxFKRqd1b/T5zHiNmdcUyasNqhxG1rEIEGTmD22/1RpHVCwRjC6ZpcDfmT/CD8AgBFE+8xCIiacfiuh1neYLQ26/6jwymVWh63DLLWKCCOOTmKk2FRARFkX39tfx4SaSk2klIe+mYBL+2W6KHBTB6dqwlEdwHEwf9AYv47a/zS+v+qLS6Di4qyZvN3/5rr+aqP5QcIzDzw2z1B1fXVnTWyfJ0bdDpdoWD1JqdhzNA8dRFJQWRGV/JB10tArn11fDckyC4Rc4qXZk0m3/yVxfXAhqsoOAF+KouFpu9W7dPDzQmQgSWYmScK1Szb9FDGdBLKUkgJUAFGBS0rb5annuCs0DEkFuLLOo591srJ/9nN2HzlgM1Vam0hZXbh4vzXJP53rIN1bxoC4rN+u33Z4Dg7JkGau/ni2YRWmDWX3331GMjjLEJ0BUgKOLV+ccvu2Y3jbPcdlihQq3TICaTxcpjxhQHkdY6ts19ngxk99C/X+D0KsOArbFY+ToIMn9VXNhMiQFCQ03SiKmW7r+/8ue0ayued5lakEUREO7qW4g9FXywAaqSB++pHFfZsesIAAD/uMNw6izNeOKDSBlq1YLK7fbYIInI1l4ZcLPCg0iv+fT+n+0ySClvjsLkYDFdIBQ4u7LjcVR+sk97jTu2PiJDPDge8U8EcEh+gaKUtZR5jDvZaEzmh6trKRGhMHahpamqCkYPBJDHTr4bE42qRTObGMCudpGCupoDtkaudhaEZiu5ygf8MfaTEqGIPi4DJ+2ir8HC6opI8b3rnePj6FRZOmC4YrYj9J20NPv2+FEanbLKYsY0Slcn1wLU5yn0CMWuzkZ56olrUMZ2f/zRR/HxT+g+o0W71haJzEiMYnZ5MWCIGBFayrUF0W/y102HLO32FqHd/QxjlAdTcIE9RDy5dpEJDtagVNqGS3pg4PF7++hHZYqnPiXzbJwlvgbulBPewc3tWM1Ky72Xpl0WUjhcHlBNg437ueohkS9zCmzMmfQA2N1Rqoo87+dcC3X4oOoSTD/ZAUQBULhwYTk4pkuGsaOeOYdwbC6HOL1TPTZgpEkMSGN1r93YgLCy6rdleJFsTY1tXRZR7gsAjGYMN7HBYGoVaxrjKMMTduHbQADg1MU0GyAMuvZRNyjt0zi493oEv2zwCetdRXu0cqi382Dpu7QtVCXy5NhNqtsEufF6+c2WOuidSbmJeLF71MyBKRUcV+3qTUcAX3x2FXzrM4jgaSbzYSdi+eAdAAhN7dIud2UEjLk+femr5NhkrmOl3dZOi9EwSYfCX30XgARxnoeInLUMdRMvaN5VQWXpPQpxLQPvJKFU5t3oMPfBQ9EZT1DkeRRqGE4mwbfEleHlfztn38l14R97vGgM64+hUay47GIMkcogjGEp1TGh0MiEtTNpQ8QQmWiSwcbJlGM+YhiDjdH7ZAVh+Mw/Xn0CDileOb6ylne6i++0cPTb/3vFvfyvLO0GnqduMpsTFNiAgasxiohhmpAy8Iw0Bw/muMyHFIaZo6Oe0fskMBwx9igYgeIoenRp6y/+SH56YqVPsgQP9V9eHpW/2/Poi9XlE9W6xNNZo2j+/Nc+9s/f+c9dQixQIvcnDqtUJtWh6pvkX/4nCkNmu6w+QlvXljh0PBIsEYS255Y32//6xf3ZJbSL+0Z5WbP8APOV3/svh7HZxp2vf3Ss53F8aHfWP3qIcVjBKklbwwmUHdtONznibPnkL32fwLHTvK+rZfILbyuCgtLLAktINDmz0eybXy03ltCREsG8Ju/eFZvusALYLS5PmyrVPlmMMmeS7WOz158/zgJAAG/wohHYxbxFpPj+lwmc35LuyGXNnWmKoldSWJVxpSHw0Ynd7qWi5bEMfHTi4hbuHb+UHRjg+9P+4ZAfbDF9pBFgTo9dv/vMpgXlA3IWuuld7EttvSxeWaWQZAsWlHphvhdj8FbispvraR3A8ZVB8/c+9RfboSuPn9qpTGdV/dbRTWW3Rm/Ts2eSgYTtDalCfuex9vLxEYaIqMUddAQhIRCaPt63Lw8I6mV+v9mwv7jcARtBdKuwie633hQOdN6/P21FHnvo7q1yUnv02g/uqIG/7/BHBnbU8MF4yPyO+c1vXP21jcACIdxQLrXtD3nCI/e+rQk8fVOvnRpQenORKmlxXa31i0K12sUIgZgl5J6XVcgtkj248daeyaNRyRluDVOB06jVqfLmS+eiYdYyOs2i6vZp6wxZMW1dc/Lcf/z16uz0erlYBhAo6piu0L1YKt0qbWpE20g8QTQLAEy2gxbXfPXz/cELBwnrkYRqNjzN1PmTliEVcVhSrInx6hDZJMw3NiGSC79x/vVX55QUPE2SoAWxiZ7OdVlgVSNtUGgdDcFhxrwuGrq+bvl89ItniikPuAMxJ1LTPoXoCChnC24tF6ElLmg0nw3Bki/+yvJPA+sEKjGqVAwKdR/outaeRpaEsowp0cs2cBKi8ChgukmaWFT7TBgHMeWIOATEO99qhqvaEJQhjVEqTS7snHECnxWvGF4gUlfOeE7FeHm0yEzIWpdbJBOzdJi4OtYVJSwFhglPyZb2kjPBIg3OUQoGu2q/wFzQFvcCklmECqLuDIDS1442WJOYyUkHTGaZd8sF6pLhsuE+QlLibKo1YtL7Yt5HnHkawu7d5fmUkyjSsk0T5xpap3FmK+v7WeViNB3W3zOkxUYWQOjnH3+tFuPFgPb7Xe3w4d48Djkn3rSMaadF3jTp8lD2SNGwAAgA0H11quchUMA0UAqAEJ/PWp61eeJzSYoj63mkGY2HYhfr78Bafcz01DpvJoez2UxB8Eh2hj3kWo0tiE7ek21tUT9acIYiGG/JWFPeYd56WofQNqapwSvAS5RxaJt24gULXq4O3TUCW5+7Va2+2zmuj6ax26m1ZQnDKa9DsIIbI5hcISgtrVhPaEkG0UewZNMC8Y4JZo0QpgTnFSeLHEeB2LQmwmU4TWs3uHqbQPxoJ9RHQ/EgDFKLNR8kGQnWRlsjFr2y3S5ykqyIRsgcuSw1hlA3YoF5mzDkHGCEAZmaUG8xdHBd5SU0c5lQquX8DkEHJ595sD/lASjTqjtMz5x0lQzEuxY7n9R4TLkjAY9QyxhGUloXSSQZR5h3QiuBAA2BaaSJ8yzEjNgm0xaUaBCW/7clGIrH/8++5IR4jXrHkF7yccX8p+eTOtocmUJKgJ4ocYfikNEIEWEFGQk8As4Cpphg76lCIhigxvc68og+bdMQ2pmgXwMSycGJ567ng2AM751hEwqKH2+L+3XZicQI2oa8IoFFRTPqDMPGEAYRaCScB0QJpJ5ZvrS8rRGmCUuB9N0sU/ec+Ce/9Pt7GAO47/+zT5hZETBJuWIsNy4TWVHiQrXOsG5QKa2X2YaqKVWt6MpgvGs0R5CA8knErA3A+5ke/sHFhUhx5cV6Nm268YufTW8hIBDh1j9Quz5Ekg6yHeByMfZ3UFHIqiQ8IvCBRd6J3jruAahA3tngeWIoRySD4IOAKEixoPY1QdtegjkMct8NrPN736GeACC4Mb6OsIni7JFzunVb7a7zQyUhaouFn0C21mie4TbxTRcBF82+Xo2Y8Zhi4IiJMioFkbxydbXvkq5eeMZBp/qv/gAFIAAI3RHnztSGDMdHIQSygW/T2ad/5288NsuIaawR4y3BHCup0dIlaaQH3x/3swR57jxIVDnpvHHV8RGSXDJbHFlP9LL6aol+9PcdocPPn79j8hNlrUM2Qnfnqtn+wSELcxPzKHzAXpBQeFmUQVsdkBov87GgMWfaBsdspJGYmIWUauKztNU6RJdvXybh/88HSF3ZvtbpnyibLiNV7NkJnl83rdYyR6GN0dJOIISYSCglnqhKPLlaK5rgqHMWWRO88YrISKhOpUJpUCpB+ntzFP92AClmvRRr1hdOi5QefeQX3/GqMkIl0vmIIqS+HIGnjucp4mCbpL+seow1falJwbOIQUWOQpvfN7wiDDXHLn7ruyj+resY0ZL05lUu0DjtSEeW9yNOmOAiZuAi6hHvydwlLgoUSVK2MFs6UjGSBAutW1Eu0ZgYTcT83P72SsDQu/EAo/dMmXF6NiDT+LXlvbxQ6ErIvaB0KH2eUUaFY8xhGjCxgSX2iBDKlmKDaI2aCgCbllC80GT7yoknC0aKmNp7xS76ad8Umzde8Mi6g+64ftByr/WJS5snR/Wdv7llpdfgXd86AYq2ifOZNyO1TLwgkUQHLUFIZPchOzx1Lh6uLYa0Mttw472DeESL1WypamKTCYjTN579F196+exsT178zFN9VMhOq3uZQorZlLWCFkqgGaVxwE2J84Azb1go0vjv+IIaPj9N1Wy78PF9tub6J6cN4Z0OcuTc05+7futeuzP16aVfG73257fNwoa1wsEAScdYEfb740PWGw1pYWNAglWJJTPDjE86vr0bRKt/0PzI4vwpr6J5PGiZxMLpZ37l5Vf+5M32lGwk6b1Kz+wKhbHCNubaey6aMoghGgQeFE9wrVIWhsS0MaY+G9Hoj02Wce/JuUbv867xU9UuNlaQ/jMvfPl2Glv8hDhIN1cutC6OkUeTFDnwkhFLapwlyLpIF52eyp1BTDfIpuXpzgGmFKX5yu5zD8qH3JbzxVNPdPPe+rFLW9frwEP8Etywk380nD0THiBWOg+IMGSji20+GoPWQljVGVqPAHSuqnRPXIHWSZHCFbNypX6PVwGA4OreW/fHq6l56vnXp5H2Ridxw9P2nWW7cn5QtxmmmFNUxQrj/pqMrJvFFhETkgg9muZaeP9moCBO9dPB7/zh9w7J+3qAHX16svzhXdz/0vb/IMGq9Av5W0cdmD929sG3S13Z0gN0S4OJjusDYXE/NpRGRz0MCBPceeFHz3b6zDm1+929u0cQ39uDgPdunTAIH65XR5nRKD02IoOl2DqzG5f7WIpaVMwaQjE9ODnEElzFB6VNecEG1LWu23O+33d94ZwUgzd8N+KHTEFzYtDKBH3i9uzpg87msNzos+0Lnz9XTdeT/dqHmnCrsKwWp84wooVnaTcuebTjYVk1OLo4vZ+zXk6FtMI83f8WDQ+5jqvDmGD36V7jyosXRN45jC8wIA/YsDtrVAgQwJnIV4/niWaYicQOuEOjoUOuEHUDK9O0n0kMgdCivX7toXMQYe8lzhKFXwquFmt5h7y5GH+zs2WuzTw+rFoMinXPnh0flxSBxbkj3qwFnWUOk6WJus27OU9xQnUu4sYbd/D7BRCcf8LnIc7HZMbm93p9tH/lRuFPH31r9ej6YR1axHoffWoUA6KRdfWUxkCcFIJCY1pH5vB2fwAEI5/Tcs7f2nlIAMcXpRVeN8XL5ojwavL2fFGun1/fSm5fmWkUJ8mF8enNe7EN3qbPXr5RdxMcMk6YD51WTQYkSZt8nRjTTiYozG979FAPTvU6eGFJC893bqR6dhrln/30KfX6qzsxhFhbtrpOKGZ1Uj5Y7O71uiQOSBARWGCYS5x06WgggdwJRwfpvLhj0EOYq0684BDgzfAPLx66UQ+gvfPOuwVyisqKDElTApA2q+qwdz9xomppgn3EvJlnHVR71OmQOUN8jseY63OX38/RYtprVZ0DG+59d//jJ3N1dO/yjgPEO1WIOlDKmbcEmGtSBd1SVYJQymvBA48s4V1DEDGOJuttC46dfef9oA7F4VqRxDiEieqUf+QYeIVlTzjc+ky1yFpQHIwu2yg9UxIbr20ILnNIKENsBkbIuIZNzPpuj17exuG9AhEfTDeNOiIcdZtGZA2BXoIYyUNMHNaEeC6tXjQtJKWmn7p2V1ApLE2EA0sxpijiUJG61ppCE+zkEajR1rxZ6DZJSYCYYkJCbVdSGQEjy7yXMm+Pauc8JpHdn/OUr6xHhFtJLCFJ4yTRyL47pTJJ0Ww++dGr6L0HbXIBOdYXLETi65K3jbeOWk4iAmrVsCd25imxcuWXq6MDsbnRkxwLB9ghwG2bUdOyB97O7jbLSfnDOyg+TEC0v+jyNbmWuMi4pBEJZmUKQlpqfTLqHDzoFoqyDN3E481cMhqD9gJbEA61IcEV8lbG/Fp25htXf0zs3sNw6P1BjjGh7Swi5WOjWTAtH0BV120npzZGYDhi+hawTvR1JJh66Sn1NBiRIqdiomUf0X/6+1dxeDSFGn50Fv3BvKlIdInlNkYbVTVVnnVyYRMxp90Ez0KHhaZRJeY0CRHh0hgfq6W1s5mj1f1//x/+ivlH8uSAXn1u66AsLBKJGoLAlkrsFjSLvaSbuI5pMdMJvZmYvm4UoiQnDjM82Y9nsrsHgnA8BwK/+8ZXiPsAjobj9hcGR1SCaGOfIhJp5GIw7CS9nBMq2LYO1pl7ql+WbWETvsEUibScLmXXtBPrTXHv3ovf/tca4gcIRFS/m50SiCWklyVAUIcn64KIpNML3EcIgWS42at6WJeEiuGICmVcPfex122M45beUfV/Qz8NfR+CpZM3ls+vuN54SLPQks7KaqobW8zlkHiCMyJIq30ySIxkWSdP42zqSVG3Yhxr2nWU2/p1gPhhNBaR+29uDUvOFIlhfaMrOLct2GpIgvSII2PTg3I95JJ3Vkd8sRd59LRkEgkPOJ2+c/O98R/BkyNu3yBPW9NP2ShXZezh0lDiISNYJSl40G6jg6SgcmPUzCPHAbGaAtZW7+z99QMUfyYRjwjdKT/BgRIz3yllt2pwQBh6ogrNXGGYf47sDCRO17u+jtzzPi0Wd3Bod7/3zVvqIeb+qLWHCPi7d4+/lHWCWglx6nEkEG2F2XTqwLt4/I/7kHUQQa2jlI5Ci0HuXz2YAEIPbz6gD945Gcm4eWGYLIZtcDRdrKyVy0bpMB68fu2ZNcpICCK4nlS3l3vXBtM5IIh/98WNiFCcAuy9MTh9TiTQUE9wvYPrJm9e3PnT3JxYT2OedsSyzN79kwpg+gHhP3T1BP2oXOljyTNrYjKiVbvcy+jb9xSKIAfJ39/8xgRX6nD54wt/nu0cAIQCAAyffGq64/yisO1PTj12P15S+bAA/w98GuRaRsYxcAAAAABJRU5ErkJggg==" width="56" height="56" clip-path="url(#thumb)" preserveAspectRatio="xMidYMid slice"/></g>
+<text x="142" y="522" class="mod" text-anchor="middle">T1c</text>
+<line x1="178" y1="484" x2="292" y2="484" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<text x="82" y="634" class="math" text-anchor="middle">x<tspan class="sub" dy="5">n</tspan></text>
+<g transform="translate(114,600)"><rect width="56" height="56" rx="4" fill="#0b0d12"/><image href="data:image/png;base64,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" width="56" height="56" clip-path="url(#thumb)" preserveAspectRatio="xMidYMid slice"/></g>
+<text x="142" y="666" class="mod" text-anchor="middle">T2</text>
+<line x1="178" y1="628" x2="292" y2="628" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<text x="82" y="564" class="dots" text-anchor="middle" >⋮</text>
+<text x="142" y="564" class="dots" text-anchor="middle" >⋮</text>
+<line x1="178" y1="556" x2="292" y2="556" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<polygon points="296,380 466,404 466,636 296,662" fill="#C3D9EE"/>
+<rect x="326" y="440" width="24" height="176" rx="2" fill="#ffffff" stroke="none" opacity="0.72" />
+<rect x="366" y="462" width="22" height="130" rx="2" fill="#ffffff" stroke="none" opacity="0.72" />
+<rect x="404" y="484" width="20" height="86" rx="2" fill="#ffffff" stroke="none" opacity="0.72" />
+<text x="381" y="426" class="block" text-anchor="middle" >Encoder</text>
+<rect x="538" y="380" width="64" height="280" rx="10" fill="#EDEEF0" stroke="none" opacity="1" />
+<rect x="546" y="395" width="48" height="34" rx="6" fill="#8CCBD1" stroke="none" opacity="1" />
+<text x="570" y="417" class="mathbox" text-anchor="middle">d<tspan class="sub" dy="5">1</tspan></text>
+<rect x="546" y="467" width="48" height="34" rx="6" fill="#B7C9E8" stroke="none" opacity="1" />
+<text x="570" y="489" class="mathbox" text-anchor="middle">d<tspan class="sub" dy="5">2</tspan></text>
+<rect x="546" y="611" width="48" height="34" rx="6" fill="#7FA3D0" stroke="none" opacity="1" />
+<text x="570" y="633" class="mathbox" text-anchor="middle">d<tspan class="sub" dy="5">n</tspan></text>
+<text x="570" y="564" class="dots" text-anchor="middle" >⋮</text>
+<line x1="468" y1="412" x2="538" y2="412" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="604" y1="412" x2="654" y2="412" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="468" y1="484" x2="538" y2="484" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="604" y1="484" x2="654" y2="484" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="468" y1="556" x2="538" y2="556" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="604" y1="556" x2="654" y2="556" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="468" y1="628" x2="538" y2="628" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="604" y1="628" x2="654" y2="628" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<polygon points="656,404 830,378 830,664 656,636" fill="#D9A5A5"/>
+<rect x="688" y="484" width="20" height="86" rx="2" fill="#ffffff" stroke="none" opacity="0.6" />
+<rect x="728" y="462" width="22" height="130" rx="2" fill="#ffffff" stroke="none" opacity="0.6" />
+<rect x="768" y="440" width="24" height="176" rx="2" fill="#ffffff" stroke="none" opacity="0.6" />
+<text x="742" y="426" class="block" text-anchor="middle" >Decoder</text>
+<rect x="878" y="390" width="58" height="44" rx="8" fill="#E3B7B7" stroke="none" opacity="1" />
+<text x="907" y="418" class="mathbox" text-anchor="middle">h<tspan class="sub" dy="5">1</tspan></text>
+<rect x="878" y="462" width="58" height="44" rx="8" fill="#F5C9A6" stroke="none" opacity="1" />
+<text x="907" y="490" class="mathbox" text-anchor="middle">h<tspan class="sub" dy="5">2</tspan></text>
+<rect x="878" y="606" width="58" height="44" rx="8" fill="#FBE7A3" stroke="none" opacity="1" />
+<text x="907" y="634" class="mathbox" text-anchor="middle">h<tspan class="sub" dy="5">n</tspan></text>
+<text x="907" y="564" class="dots" text-anchor="middle" >⋮</text>
+<line x1="832" y1="412" x2="876" y2="412" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="832" y1="484" x2="876" y2="484" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="832" y1="556" x2="876" y2="556" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="832" y1="628" x2="876" y2="628" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)" opacity="1" fill="none"/>
+<rect x="1006" y="384" width="64" height="258" rx="10" fill="#EDEEF0" stroke="none" opacity="1" />
+<text x="1038" y="519" class="block" text-anchor="middle" >DC</text>
+<line x1="936" y1="412" x2="1006" y2="402" stroke="#C98E8E" stroke-width="1.1" opacity="0.85" fill="none"/>
+<line x1="936" y1="412" x2="1006" y2="512" stroke="#C98E8E" stroke-width="1.1" opacity="0.85" fill="none"/>
+<line x1="936" y1="412" x2="1006" y2="622" stroke="#C98E8E" stroke-width="1.1" opacity="0.85" fill="none"/>
+<line x1="936" y1="484" x2="1006" y2="402" stroke="#E7A86F" stroke-width="1.1" opacity="0.85" fill="none"/>
+<line x1="936" y1="484" x2="1006" y2="512" stroke="#E7A86F" stroke-width="1.1" opacity="0.85" fill="none"/>
+<line x1="936" y1="484" x2="1006" y2="622" stroke="#E7A86F" stroke-width="1.1" opacity="0.85" fill="none"/>
+<line x1="936" y1="628" x2="1006" y2="402" stroke="#E4C96A" stroke-width="1.1" opacity="0.85" fill="none"/>
+<line x1="936" y1="628" x2="1006" y2="512" stroke="#E4C96A" stroke-width="1.1" opacity="0.85" fill="none"/>
+<line x1="936" y1="628" x2="1006" y2="622" stroke="#E4C96A" stroke-width="1.1" opacity="0.85" fill="none"/>
+<polygon points="1074,506 1094,506 1094,496 1112,513 1094,530 1094,520 1074,520" fill="#EBDCA6" opacity=".9"/>
+<rect x="1122" y="392" width="44" height="40" rx="7" fill="#EDEEF0" stroke="none" opacity="1" />
+<text x="1144" y="419" class="mathbox" text-anchor="middle" >Y</text>
+<rect x="1118" y="480" width="52" height="66" rx="9" fill="#EDEEF0" stroke="none" opacity="1" />
+<text x="1144" y="521" class="mathbox" text-anchor="middle" >Ŷ</text>
+<rect x="1122" y="594" width="44" height="40" rx="7" fill="#EDEEF0" stroke="none" opacity="1" />
+<text x="1144" y="621" class="mathbox" text-anchor="middle" >Y</text>
+<rect x="1226" y="408" width="66" height="58" rx="9" fill="#EBDCA6" stroke="none" opacity="1" />
+<text x="1250" y="444" class="loss" text-anchor="middle">ℒ</text>
+<text x="1259" y="448" class="loss-sub" text-anchor="start">dice</text>
+<rect x="1226" y="550" width="66" height="58" rx="9" fill="#E2CBE8" stroke="none" opacity="1" />
+<text x="1250" y="586" class="loss" text-anchor="middle">ℒ</text>
+<text x="1259" y="590" class="loss-sub" text-anchor="start">HD</text>
+<rect x="1226" y="672" width="66" height="58" rx="9" fill="#BFE4E0" stroke="none" opacity="1" />
+<text x="1250" y="708" class="loss" text-anchor="middle">ℒ</text>
+<text x="1259" y="712" class="loss-sub" text-anchor="start">MI</text>
+<line x1="1166" y1="412" x2="1196" y2="412" stroke="currentColor" stroke-width="1.2" opacity="1" fill="none"/>
+<line x1="1170" y1="513" x2="1196" y2="513" stroke="currentColor" stroke-width="1.2" opacity="1" fill="none"/>
+<line x1="1166" y1="614" x2="1196" y2="614" stroke="currentColor" stroke-width="1.2" opacity="1" fill="none"/>
+<line x1="1196" y1="412" x2="1196" y2="614" stroke="currentColor" stroke-width="1.2" opacity="1" fill="none"/>
+<line x1="1196" y1="437" x2="1224" y2="437" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)" opacity="1" fill="none"/>
+<line x1="1196" y1="579" x2="1224" y2="579" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)" opacity="1" fill="none"/>
+<polyline points="570,660 570,701 1224,701" stroke="currentColor" stroke-width="1.4" marker-end="url(#arK)" opacity="1" fill="none"/>
+<polyline points="60,332 296,380" stroke="#8FB3D9" stroke-width="1.1" stroke-dasharray="4 4" opacity="1" fill="none"/>
+<polyline points="470,332 466,404" stroke="#8FB3D9" stroke-width="1.1" stroke-dasharray="4 4" opacity="1" fill="none"/>
+<polyline points="575,332 570,378" stroke="#5FB3BA" stroke-width="1.6" marker-end="url(#arT)" opacity="1" fill="none"/>
+<polyline points="640,332 656,404" stroke="#D9A5A5" stroke-width="1.1" stroke-dasharray="4 4" opacity="1" fill="none"/>
+<polyline points="946,332 907,388" stroke="#D9A5A5" stroke-width="1.6" marker-end="url(#arR)" opacity="1" fill="none"/>
+      </svg>
+    </div>
+    <figcaption><b>Fig. 1 重繪。</b>每個模態 <span class="eq">x<sub>i</sub></span> 獨立通過<b>同一個</b> Encoder / Decoder（parallel 架構，權重共用），得到 bottleneck 特徵 <span class="eq">d<sub>i</sub></span> 與單模態分割 <span class="eq">h<sub>i</sub></span>。DC（Dynamic Combination）只取仍存在的模態的 <span class="eq">h<sub>i</sub></span> 融合成 <span class="eq">Ŷ</span>，與 <span class="eq">Y</span> 算 <span class="eq">ℒ</span><sub>dice</sub> 與 <span class="eq">ℒ</span><sub>HD</sub>；右上 inset：<span class="eq">d<sub>f</sub></span> = Avg(<span class="eq">d</span><sub>1..n</sub>) 是「全模態」特徵，每個 <span class="eq">d<sub>i</sub></span> 都與它計算 <span class="eq">ℒ</span><sub>MI</sub>，把全模態的知識轉移到缺模態的表徵上。左上 inset 改畫成程式碼實際的 3D U-Net：每個 stream 輸入 1 通道，16 → 32 → 64 → 128 → 128（bottleneck 就是 d<sub>i</sub>，128 ch @ 8³），decoder 每層 concat 後兩個 Conv3d，最後 1³ 卷積輸出 3 個 sigmoid 通道。輸入縮圖為 BraTS20_Training_026 的真實切片（z = 62）。</figcaption>
+  </figure>
+
+  <section>
+    <h2>圖中元件 ↔ 這份 repo 的程式碼</h2>
+    <p class="lede">論文用抽象符號，實作時對應到以下位置。訓練時 DC 並不是單一個運算，而是 <code>EnumerationLoss</code> 對 15 個模態子集各做一次平均。</p>
+    <div class="tablewrap">
+    <table>
+      <tr><th>圖中符號</th><th>論文意義</th><th>程式碼位置</th></tr>
+      <tr><td>x<sub>i</sub></td><td>第 i 個模態的影像（FLAIR / T1c / T1 / T2）</td><td><code>Ensemble.forward</code> 把 <code>[B,4,D,H,W]</code> 拆成 4 個單通道 — <code>modeling/ensemble/ensemble.py:23</code></td></tr>
+      <tr><td>Encoder / Decoder</td><td>channel encoder f<sub>i</sub> + 共用 backbone T(·;θ)</td><td><code>unet3d_parallel.py</code>；conv 由 <code>ModuleParallel</code> 共用、GroupNorm 每模態各一組（<code>modules.py:14-21</code>）</td></tr>
+      <tr><td>d<sub>i</sub></td><td>第 i 個模態最深層特徵</td><td>bottleneck <code>c5d</code>，128 ch @ 8³（128³ crop）— <code>unet3d_parallel.py:66</code></td></tr>
+      <tr><td>d<sub>f</sub></td><td>全模態特徵 = Avg(d<sub>1</sub>…d<sub>n</sub>)</td><td><code>trainer.py:338-339</code></td></tr>
+      <tr><td>h<sub>i</sub></td><td>單模態分割 logits</td><td><code>out</code> list（4 × <code>[B,3,D,H,W]</code>）</td></tr>
+      <tr><td>DC → Ŷ</td><td>對存活模態的 h<sub>i</sub> 做融合 M(H)</td><td>推論：<code>torch.mean(out[preserved])</code> — <code>ensemble.py:34</code>；訓練：15 個子集各取 mean — <code>loss.py:27-33</code></td></tr>
+      <tr><td>ℒ<sub>dice</sub> + ℒ<sub>HD</sub></td><td>Dice（eq. 6）+ Hölder divergence（eq. 1–2），α = 1.1</td><td><code>DiceCoef</code> — <code>utils/loss.py:49-72</code></td></tr>
+      <tr><td>ℒ<sub>MI</sub></td><td>變分互資訊 −log q(d<sub>f</sub> | d<sub>m</sub>)（eq. 4–5）</td><td><code>VIDLoss</code> + <code>Cal_MIloss</code> — <code>utils/loss.py:75-120</code></td></tr>
+      <tr><td>ℒ<sub>All</sub></td><td>ℒ<sub>dice</sub> + λ<sub>1</sub>ℒ<sub>MI</sub> + λ<sub>2</sub>ℒ<sub>HD</sub>（eq. 7）</td><td>三項直接相加，λ<sub>1</sub> = λ<sub>2</sub> = 1 — <code>loss.py:39</code></td></tr>
+    </table>
+    </div>
+
+    <div class="note">
+      <strong>論文圖 vs. 實際程式碼的差異</strong>（畫的是論文版本，讀 code 時要換算）
+      <ul>
+        <li>論文原圖的 U-Net inset 是經典 2D U-Net（3→64→…→1024、輸出 2 類、up-conv、copy-and-crop）；這裡已改畫成實作版：<b>3D</b>、<code>width_ratio=0.5</code> → 16 / 32 / 64 / 128 / 128、輸出 <b>3</b> 個 sigmoid 通道、<code>padding=1</code> 所以 skip 直接 concat、trilinear 上採樣後接兩個 Conv3d（<code>Up.conv</code> 的 DoubleConv）。</li>
+        <li>圖中 h<sub>i</sub> 到 DC 的交叉線代表「任意子集都能融合」；程式裡訓練階段一次前向就把全部 15 個子集的 loss 加總（<code>itertools.combinations</code>），並非隨機丟模態。</li>
+        <li>ℒ<sub>MI</sub> inset 畫成每個 d<sub>i</sub> 對 d<sub>f</sub>；程式裡實際是每個<b>子集</b>的 mean(d<sub>subset</sub>) 對 d<sub>f</sub>，單模態只是 15 個子集中的 4 個。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>配色即語意</h2>
+    <p class="lede">沿用論文原圖的色彩編碼，方便對照原文。</p>
+    <div class="grid">
+      <div class="card"><h3><span class="sw" style="background:#C3D9EE"></span>藍 — Encoder 側</h3><p>Encoder 梯形、U-Net inset 的 encoder 特徵圖（<span class="sw" style="background:#8CCBD1"></span>青）與 concat 的 skip 部分。</p></div>
+      <div class="card"><h3><span class="sw" style="background:#D9A5A5"></span>玫瑰 — Decoder 側</h3><p>Decoder 梯形、decoder 特徵圖、up-conv 箭頭，以及 h<sub>1</sub>。</p></div>
+      <div class="card"><h3><span class="sw" style="background:#8CCBD1"></span><span class="sw" style="background:#B7C9E8"></span><span class="sw" style="background:#7FA3D0"></span>d<sub>1</sub> / d<sub>2</sub> / d<sub>n</sub></h3><p>同一個 d 在兩個面板用同色，右上 inset 的連線顏色跟著各自的 d<sub>i</sub>。</p></div>
+      <div class="card"><h3><span class="sw" style="background:#EBDCA6"></span><span class="sw" style="background:#E2CBE8"></span><span class="sw" style="background:#BFE4E0"></span>三個損失</h3><p>沙色 ℒ<sub>dice</sub>、丁香 ℒ<sub>HD</sub>、薄荷 ℒ<sub>MI</sub>；<span class="sw" style="background:#B9DCA5"></span>綠色是 d<sub>f</sub> 與「d<sub>f</sub> 往各 d<sub>i</sub>」的箭頭。</p></div>
+    </div>
+  </section>
+</main>

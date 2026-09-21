@@ -1,0 +1,30 @@
+defaults:
+  - _self_
+  - dataset: brats3d_acn
+  - model: ensemble
+  - loss: enumeration
+  - optim: adam
+  - trainer: trainer
+  - scheduler: scheduler
+
+mode: "train"
+epochs: 100
+start_epoch: 0
+batch_size: 1
+test_batch_size: 1
+lr_scheduler: "poly"
+cuda: True
+gpu_ids: "0"
+seed: 42
+resume: NULL
+checkname: "test"
+save_to: "results"
+eval_interval: 1
+metrics:
+  - "dice"
+distributed: False
+workers: 4
+world_size: 1
+
+# torch distributed process group init method
+port: 01

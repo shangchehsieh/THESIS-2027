@@ -1,0 +1,13 @@
+name: "brats3d-acn"
+# training random-crop size (must be multiples of 16 for the 4-level U-Net)
+crop_size:
+  - 128
+  - 128
+  - 128
+# validation center-crop size; must fit inside the volumes (136 x 172 x 134)
+val_size:
+  - 128
+  - 160
+  - 128
+# cap the number of train/val cases (<=0 means use all) - handy for smoke tests
+limit: -1

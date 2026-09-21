@@ -1,0 +1,19 @@
+# 資料集(19 GB,絕對不要進 git)
+BRATS2020_Training_none_npy/
+
+# 訓練產出
+# results/ = checkpoints + results.csv + TensorBoard 事件檔
+# outputs/ = Hydra 每次執行的工作目錄
+# logs/    = 整理過的訓練與評估紀錄
+results/
+outputs/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+
+# 其他
+.DS_Store
+*.md
