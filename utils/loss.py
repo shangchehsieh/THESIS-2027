@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+from modeling.ensemble.fusion import enumerate_subsets
 
 class SegmentationLosses(object):
     def __init__(self, args, nclass=3, ):
@@ -21,23 +22,16 @@ class SegmentationLosses(object):
             raise NotImplementedError
     
 
-    def EnumerationLoss(self, logits, target, df, df_full, weights=None):
-        M = len(logits)
+    def EnumerationLoss(self, fused, target, df, df_full, weights=None):
+        M = len(df)
         loss = 0.
 
-        for l in reversed(range(1, 5)):
-            for subset in itertools.combinations(list(range(M)), l):
+        for subset, missing_logits in zip(enumerate_subsets(M), fused):
+            df2 = torch.mean(torch.stack([df[l1] for l1 in subset], dim=0), dim=0)
+            self.VID_branch = self.VID_branch.cuda()
+            MI_pred_mean, MI_log_scale = self.VID_branch(df2)
 
-                missing_logits = torch.stack([logits[l1] for l1 in subset], dim=0)
-                df1 = torch.stack([df[l1] for l1 in subset], dim=0)
-
-                missing_logits = torch.mean(missing_logits, dim=0)
-                df2 = torch.mean(df1, dim=0)
-                self.VID_branch = self.VID_branch.cuda()
-                MI_pred_mean, MI_log_scale = self.VID_branch(df2)
-
-
-                loss += self.DiceCoef(missing_logits, target) + self.Cal_MIloss(df_full, MI_pred_mean, MI_log_scale)
+            loss += self.DiceCoef(missing_logits, target) + self.Cal_MIloss(df_full, MI_pred_mean, MI_log_scale)
 
         if self.args.loss.output == 'mean':
             print("self.args.loss.output == 'mean'")

@@ -6,3 +6,4 @@ exchange: False
 width_ratio: 1.
 modality_specific_norm: True
 sharing: True
+fusion: "mean"

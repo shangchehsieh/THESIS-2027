@@ -45,13 +45,18 @@ def build(checkname, exp_dir):
     ea = EventAccumulator(exp_dir, size_guidance={"scalars": 0})
     ea.Reload()
     tags = ea.Tags()["scalars"]
-    if "train/total_loss_epoch" not in tags:
-        print(f"  {checkname}: no epoch scalars yet, skipping")
-        return
-
-    scal = ea.Scalars("train/total_loss_epoch")
+    scal = ea.Scalars("train/total_loss_epoch") if "train/total_loss_epoch" in tags else []
     epochs = [(s.step, round(s.value, 3)) for s in scal]
-    started = datetime.datetime.fromtimestamp(scal[0].wall_time)
+    # Launch time is encoded in the tfevents filename, so the log exists from
+    # the first watcher tick rather than only after epoch 0 completes.
+    ev = glob.glob(os.path.join(exp_dir, "events.out.tfevents.*"))[0]
+    try:
+        started = datetime.datetime.fromtimestamp(int(os.path.basename(ev).split(".")[3]))
+    except (IndexError, ValueError):
+        if not scal:
+            print(f"  {checkname}: no epoch scalars yet, skipping")
+            return
+        started = datetime.datetime.fromtimestamp(scal[0].wall_time)
     tag = started.strftime("%m%d")
     # two runs on the same day: keep both, disambiguate by checkname suffix
     if os.path.exists(os.path.join(OUT, f"train_clean_{tag}.log")):

@@ -11,7 +11,8 @@ def build_model(args, nclass, nchannels, model='unet', recons=False):
             feature=args.feature,
             width_ratio=args.width_ratio,
             modality_specific_norm=args.modality_specific_norm,
-            sharing=args.sharing
+            sharing=args.sharing,
+            fusion=args.get('fusion', 'mean')
         )
     else:
         raise NotImplementedError
