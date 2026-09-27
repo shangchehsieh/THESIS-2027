@@ -242,7 +242,29 @@ class Trainer(object):
                 dices.append(dice)
                 dices_class[str(subset)] = dice_class
         if self.cuda_device == 0:
+            self.log_fusion_diagnostics(epoch)
             self.save(np.mean(dices), dices_class, epoch)
+
+    def log_fusion_diagnostics(self, epoch):
+        model = self.model.module
+        if getattr(model, 'fusion', 'mean') != 'mattn':
+            return
+        model.eval()
+        sample = next(iter(self.val_loader))['image']
+        if self.args.cuda:
+            sample = sample.cuda()
+        with torch.no_grad():
+            _, _, feat = model.module([sample[:, i:i + 1] for i in range(model.in_channels)])
+            d = model.attn.diagnostics(model.module.outc.conv.module.weight, feat)
+        for k in ('o_norm', 'gain', 'self_w', 'top_w'):
+            self.writer.add_scalar(f'attn/{k}', d[k], epoch)
+        a = d['attn']
+        names = ['Fl', 'T1c', 'T1', 'T2'][:a.shape[0]]
+        for i, qi in enumerate(names):
+            for j, kj in enumerate(names):
+                self.writer.add_scalar(f'attn_matrix/{qi}_to_{kj}', a[i, j].item(), epoch)
+        print(f'[attn] gain {d["gain"]:.1f}x  |o| {d["o_norm"]:.2f}  '
+              f'self {d["self_w"]:.3f}  top {d["top_w"]:.3f}')
 
     def _test(self, drop=[], epoch=0):
         self.model.eval()
@@ -334,7 +356,7 @@ class Trainer(object):
         pass
 
     def forward_batch(self, image, target):
-        output, df = self.model(image)
+        output, df = self.model(image)  # output: per-subset fused logits
         missing_logits = torch.stack([df[l] for l in range(4)], dim=0)
         df_full = torch.mean(missing_logits, dim=0)
 

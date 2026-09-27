@@ -12,6 +12,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# train_bg.sh launches this outside the venv, so `python` may not be on PATH.
+VENV="$HOME/nthu_sc/bin/activate"
+[ -f "$VENV" ] && source "$VENV"
+command -v python >/dev/null || { echo "python not found (venv: $VENV)" >&2; exit 1; }
+
 PID="$1"
 CHECKNAME="$2"
 INTERVAL="${3:-300}"

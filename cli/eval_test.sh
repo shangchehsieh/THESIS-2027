@@ -4,6 +4,7 @@
 #
 #   bash cli/eval_test.sh                    # newest run
 #   bash cli/eval_test.sh <checkname>        # a specific run
+# The fusion variant is read from the run's own parameters.txt.
 #
 # Each invocation writes one log, named by the date you ran it (same <MMDD>
 # convention as logs/train_clean_<MMDD>.log):
@@ -12,6 +13,11 @@
 # The checkname and checkpoint path are recorded in the log header.
 set -e
 cd "$(dirname "$0")/.."
+
+# Callers may invoke this outside the venv, so `python` may not be on PATH.
+VENV="$HOME/nthu_sc/bin/activate"
+[ -f "$VENV" ] && source "$VENV"
+command -v python >/dev/null || { echo "python not found (venv: $VENV)" >&2; exit 1; }
 
 CHECKNAME="$1"
 if [ -z "$CHECKNAME" ]; then
@@ -23,8 +29,15 @@ if [ -z "$CHECKNAME" ]; then
 fi
 [ -n "$CHECKNAME" ] || { echo "no run with model_best.pth found" >&2; exit 1; }
 
-CKPT=$(ls -d results/*/"$CHECKNAME" 2>/dev/null | head -1)/model_best.pth
+RUNDIR=$(ls -d results/*/"$CHECKNAME" 2>/dev/null | head -1)
+CKPT="$RUNDIR/model_best.pth"
 [ -f "$CKPT" ] || { echo "checkpoint not found: $CKPT" >&2; exit 1; }
+
+# The fusion variant must match the checkpoint, otherwise the state_dict has
+# keys the model does not (config default is "mean"). Read it back from the
+# config the training run recorded rather than relying on the caller.
+FUSION=$(sed -n "s/.*'fusion': '\([a-z]*\)'.*/\1/p" "$RUNDIR"/experiment_*/parameters.txt 2>/dev/null | tail -1)
+FUSION=${FUSION:-mean}
 
 mkdir -p logs
 TAG=$(date +%m%d)
@@ -33,6 +46,7 @@ LOG="logs/eval_test_${TAG}.log"
 {
     echo "checkname:  $CHECKNAME"
     echo "checkpoint: $CKPT"
+    echo "fusion:     $FUSION"
     echo "date:       $(date '+%Y-%m-%d %H:%M:%S')"
     echo "log:        $LOG"
     echo
@@ -46,6 +60,7 @@ python eval_test.py \
     resume="$CKPT" \
     batch_size=8 test_batch_size=8 \
     model="ensemble" model.output="list" model.feature="False" model.width_ratio="0.5" \
+    model.fusion="$FUSION" \
     dataset="brats3d_acn" \
     loss="enumeration" loss.missing_num="2" loss.output="list" \
     workers=4 gpu_ids="'0'" \
