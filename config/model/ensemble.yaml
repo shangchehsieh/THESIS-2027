@@ -7,5 +7,6 @@ width_ratio: 1.
 modality_specific_norm: True
 sharing: True
 fusion: "mean"
-# fusion=mattn only: fixed (not learned) bias on the attention diagonal; 0 = v1
-self_bias: 0.0
+# fusion=mattn only: fixed (not learned) bias on the attention diagonal; 0 = v1.
+# Saved in the checkpoint, so evaluating an old v1 checkpoint still uses 0.
+self_bias: 2.0
