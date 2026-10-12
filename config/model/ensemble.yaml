@@ -7,3 +7,5 @@ width_ratio: 1.
 modality_specific_norm: True
 sharing: True
 fusion: "mean"
+# fusion=mattn only: fixed (not learned) bias on the attention diagonal; 0 = v1
+self_bias: 0.0

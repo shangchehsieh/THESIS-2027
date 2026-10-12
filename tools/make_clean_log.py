@@ -27,6 +27,11 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(REPO, "results")
 OUT = os.path.join(REPO, "logs")
 PAPER = (0.8960, 0.8450, 0.7030)
+# 4 modalities -> 2^4 - 1 non-empty subsets. Fixed rather than "however many
+# tags exist right now": mid-eval only the combos written so far are present,
+# and they arrive hardest-first, so a partial block prints a mean that is both
+# too low and changes every refresh.
+N_COMBOS = 15
 
 
 def find_runs():
@@ -47,8 +52,8 @@ def build(checkname, exp_dir):
     tags = ea.Tags()["scalars"]
     scal = ea.Scalars("train/total_loss_epoch") if "train/total_loss_epoch" in tags else []
     epochs = [(s.step, round(s.value, 3)) for s in scal]
-    # Launch time is encoded in the tfevents filename, so the log exists from
-    # the first watcher tick rather than only after epoch 0 completes.
+    # Launch time is in the tfevents filename, so the log exists from the first
+    # watcher tick rather than only once epoch 0 has finished.
     ev = glob.glob(os.path.join(exp_dir, "events.out.tfevents.*"))[0]
     try:
         started = datetime.datetime.fromtimestamp(int(os.path.basename(ev).split(".")[3]))
@@ -58,6 +63,15 @@ def build(checkname, exp_dir):
             return
         started = datetime.datetime.fromtimestamp(scal[0].wall_time)
     tag = started.strftime("%m%d")
+
+    # Fusion-branch health, written by Trainer.log_fusion_diagnostics. The detached
+    # run discards stdout, so this is the only place the numbers surface there.
+    # Only two: `gain` says whether the branch is drowning out the direct path,
+    # `head_spread` whether the heads still route differently. The rest stay in
+    # tfevents for forensics rather than cluttering every eval block.
+    ATTN = ["gain", "head_spread"]
+    attn = {k: {x.step: x.value for x in ea.Scalars(f"attn/{k}")}
+            for k in ATTN if f"attn/{k}" in tags}
     # two runs on the same day: keep both, disambiguate by checkname suffix
     if os.path.exists(os.path.join(OUT, f"train_clean_{tag}.log")):
         with open(os.path.join(OUT, f"train_clean_{tag}.log")) as f:
@@ -95,7 +109,7 @@ def build(checkname, exp_dir):
                 f"ET {PAPER[2]:.4f}\n\n")
         for e in sorted(by):
             v = by[e]
-            if len(v) != len(combos):        # eval still in progress
+            if len(v) < N_COMBOS:            # eval still in progress
                 continue
             m = lambda k: st.mean(r[k] for r in v)
             d = m("dice")
@@ -110,11 +124,15 @@ def build(checkname, exp_dir):
                 r = full[0]
                 f.write("  all-4-modality:  dice {:.4f}   WT {:.4f}   TC {:.4f}   "
                         "ET {:.4f}\n".format(r["dice"], r["wt"], r["tc"], r["et"]))
+            if attn and e in next(iter(attn.values())):
+                f.write("  attn:            " + "   ".join(
+                    f"{k} {attn[k][e]:.3f}"
+                    for k in ATTN if k in attn and e in attn[k]) + "\n")
             f.write("\n")
         if best_ep is not None:
             f.write(f"# best: epoch {best_ep}, 15-combo mean dice {best:.4f}\n")
 
-    done = sum(1 for e in by if len(by[e]) == len(combos))
+    done = sum(1 for e in by if len(by[e]) >= N_COMBOS)
     print(f"  {checkname}: {len(epochs)} epochs, {done} complete evals"
           + (f", best {best:.4f} @ epoch {best_ep}" if best_ep is not None else "")
           + f"  ->  logs/train_clean_{tag}.log")

@@ -3,6 +3,10 @@
 #
 #   bash cli/watch_clean_log.sh <train_pid> [checkname] [interval_seconds]
 #
+# Default interval is 60s. The eval blocks themselves only appear every
+# eval_interval epochs, so most refreshes only advance the "epochs completed"
+# header -- that is the cheap liveness signal.
+#
 # Exits as soon as that PID is gone, then writes one final update.
 #
 # The exit check is `kill -0 <pid>` on a specific PID -- deliberately NOT a
@@ -12,14 +16,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-# train_bg.sh launches this outside the venv, so `python` may not be on PATH.
+# cli/train.sh launches this outside the venv, so `python` may not be on PATH.
 VENV="$HOME/nthu_sc/bin/activate"
 [ -f "$VENV" ] && source "$VENV"
 command -v python >/dev/null || { echo "python not found (venv: $VENV)" >&2; exit 1; }
 
 PID="$1"
 CHECKNAME="$2"
-INTERVAL="${3:-300}"
+INTERVAL="${3:-60}"
 MAX_HOURS=100
 
 [ -n "$PID" ] || { echo "usage: $0 <train_pid> [checkname] [interval]" >&2; exit 1; }

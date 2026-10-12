@@ -23,10 +23,18 @@ class ModalityAttnFusion(nn.Module):
     exactly the identity and the downstream uniform mean reproduces the baseline.
     Missing modalities are simply absent from `subset`, which is how they get masked
     out of the attention.
+
+    `self_bias` is a FIXED (not learned) constant added to the diagonal of the scores,
+    so every modality attends to itself by default. Trained v1 sent every query to
+    FLAIR, including T1c (T1c's own row: FLAIR 2.65 vs itself 0.81), which diluted
+    T1c's ET signal; a learnable version of this bias was driven negative by training,
+    which is why it is fixed here. 0 reproduces v1 exactly. It is a buffer so the
+    checkpoint records the value it was trained with.
     """
 
-    def __init__(self, channels, num_modalities, qk_channels=None):
+    def __init__(self, channels, num_modalities, qk_channels=None, self_bias=0.0):
         super().__init__()
+        self.register_buffer('self_bias', torch.tensor(float(self_bias)))
         C = channels
         Cqk = qk_channels or channels
         self.emb = nn.Parameter(torch.empty(num_modalities, C))
@@ -47,7 +55,8 @@ class ModalityAttnFusion(nn.Module):
         k = torch.stack([self.k(t) for t in toks], dim=1)
         v = torch.stack([self.v(t) for t in toks], dim=1)
         attn = torch.einsum('bicdhw,bjcdhw->bijdhw', q, k) * self.scale
-        attn = attn.softmax(dim=2)
+        S = len(feats)
+        attn = (attn + self.self_bias * torch.eye(S, device=attn.device).view(1, S, S, 1, 1, 1)).softmax(dim=2)
         a = torch.einsum('bijdhw,bjcdhw->bicdhw', attn, v)
         return [f + self.o(a[:, i]) for i, f in enumerate(feats)]
 
@@ -99,21 +108,29 @@ class ModalityAttnFusion(nn.Module):
         d = {"o_norm": self.o.weight.norm().item(),
              "gain": ((w_head @ w_o @ w_v).norm() / w_head.norm()).item()}
         if feats is not None:
-            a = self.scores_and_terms(head_weight, *feats)[0].softmax(dim=2).mean(dim=(0, 3, 4, 5))
+            sc = self.scores_and_terms(head_weight, *feats)[0]
+            M = sc.shape[1]
+            sc = sc + self.self_bias * torch.eye(M, device=sc.device).view(1, M, M, 1, 1, 1)
+            a = sc.softmax(dim=2).mean(dim=(0, 3, 4, 5))
             d["self_w"] = a.diagonal().mean().item()
             d["top_w"] = a.mean(dim=0).max().item()
             d["attn"] = a
         return d
 
-    @staticmethod
-    def fuse(head_out, scores, u, c, subset):
+    def fuse(self, head_out, scores, u, c, subset):
         """Fused head output for one subset (mean over its modalities)."""
         idx = list(subset)
         S, M = len(idx), scores.shape[1]
         pairs = torch.tensor([i * M + j for i in idx for j in idx], device=scores.device)
-        attn = scores.flatten(1, 2).index_select(1, pairs).view(-1, S, S, *scores.shape[3:]).softmax(dim=2)
+        attn = scores.flatten(1, 2).index_select(1, pairs).view(-1, S, S, *scores.shape[3:])
+        attn = (attn + self.self_bias * torch.eye(S, device=attn.device).view(1, S, S, 1, 1, 1)).softmax(dim=2)
         corr = 0
         for jj, j in enumerate(idx):
             corr = corr + attn[:, :, jj].unsqueeze(2) * u[:, j].unsqueeze(1)
         h = torch.stack([head_out[i] for i in idx], dim=1)
         return (h + corr).mean(dim=1) + c
+
+    def _load_from_state_dict(self, state_dict, prefix, *args, **kwargs):
+        # v1 checkpoints predate the buffer; they were trained with no bias.
+        state_dict.setdefault(prefix + 'self_bias', torch.tensor(0.0))
+        super()._load_from_state_dict(state_dict, prefix, *args, **kwargs)
