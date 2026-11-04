@@ -38,6 +38,9 @@ CKPT="$RUNDIR/model_best.pth"
 # config the training run recorded rather than relying on the caller.
 FUSION=$(sed -n "s/.*'fusion': '\([a-z]*\)'.*/\1/p" "$RUNDIR"/experiment_*/parameters.txt 2>/dev/null | tail -1)
 FUSION=${FUSION:-mean}
+# Same for the Q/K depthwise kernel: it decides which modules exist in the model.
+QKDW=$(sed -n "s/.*'qk_dw_kernel': \([0-9]*\).*/\1/p" "$RUNDIR"/experiment_*/parameters.txt 2>/dev/null | tail -1)
+QKDW=${QKDW:-0}
 
 mkdir -p logs
 TAG=$(date +%m%d)
@@ -46,7 +49,7 @@ LOG="logs/eval_test_${TAG}.log"
 {
     echo "checkname:  $CHECKNAME"
     echo "checkpoint: $CKPT"
-    echo "fusion:     $FUSION"
+    echo "fusion:     $FUSION (qk_dw_kernel $QKDW)"
     echo "date:       $(date '+%Y-%m-%d %H:%M:%S')"
     echo "log:        $LOG"
     echo
@@ -60,7 +63,7 @@ python eval_test.py \
     resume="$CKPT" \
     batch_size=8 test_batch_size=8 \
     model="ensemble" model.output="list" model.feature="False" model.width_ratio="0.5" \
-    model.fusion="$FUSION" \
+    model.fusion="$FUSION" model.qk_dw_kernel="$QKDW" \
     dataset="brats3d_acn" \
     loss="enumeration" loss.missing_num="2" loss.output="list" \
     workers=4 gpu_ids="'0'" \

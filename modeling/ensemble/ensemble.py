@@ -8,7 +8,7 @@ from modeling.ensemble.fusion import ModalityAttnFusion, enumerate_subsets
 class Ensemble(nn.Module):
     def __init__(self, in_channels, out_channels,
                  output='list', exchange=False, feature=False, modality_specific_norm=True, width_ratio=1., sharing=True,
-                 fusion='mean', self_bias=0.0, **kwargs):
+                 fusion='mean', self_bias=0.0, qk_dw_kernel=0, **kwargs):
         super().__init__()
 
         # 初始化参数
@@ -23,7 +23,8 @@ class Ensemble(nn.Module):
                             exchange=exchange, feature=feature, width_multiplier=width_ratio)
 
         if fusion == 'mattn':
-            self.attn = ModalityAttnFusion(self.module.channels[0], in_channels, self_bias=self_bias)
+            self.attn = ModalityAttnFusion(self.module.channels[0], in_channels, self_bias=self_bias,
+                                           qk_dw_kernel=qk_dw_kernel)
         elif fusion != 'mean':
             raise ValueError(f'unknown fusion {fusion!r}')
 

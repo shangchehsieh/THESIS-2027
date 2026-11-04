@@ -30,9 +30,15 @@ class ModalityAttnFusion(nn.Module):
     T1c's ET signal; a learnable version of this bias was driven negative by training,
     which is why it is fixed here. 0 reproduces v1 exactly. It is a buffer so the
     checkpoint records the value it was trained with.
+
+    `qk_dw_kernel` > 0 puts a depthwise k^3 conv (one for Q, one for K) in front of
+    the 1x1 Q/K projections, so the attention weights at a voxel see its neighbourhood
+    (ConvNeXt/MedNeXt: depthwise conv = cheap spatial mixing). V is untouched. The
+    kernels start as the identity (centre tap 1), so at init the module computes
+    exactly what it does with qk_dw_kernel = 0.
     """
 
-    def __init__(self, channels, num_modalities, qk_channels=None, self_bias=0.0):
+    def __init__(self, channels, num_modalities, qk_channels=None, self_bias=0.0, qk_dw_kernel=0):
         super().__init__()
         self.register_buffer('self_bias', torch.tensor(float(self_bias)))
         C = channels
@@ -46,13 +52,27 @@ class ModalityAttnFusion(nn.Module):
         nn.init.zeros_(self.o.weight)
         nn.init.zeros_(self.o.bias)
         self.scale = Cqk ** -0.5
+        self.dw_q = self.dw_k = None
+        if qk_dw_kernel:
+            self.dw_q, self.dw_k = (self._identity_dw(C, qk_dw_kernel) for _ in range(2))
+
+    @staticmethod
+    def _identity_dw(C, k):
+        dw = nn.Conv3d(C, C, kernel_size=k, padding=k // 2, groups=C, bias=False)
+        with torch.no_grad():
+            dw.weight.zero_()
+            dw.weight[:, 0, k // 2, k // 2, k // 2] = 1.0
+        return dw
+
+    def _qk_in(self, t, dw):
+        return t if dw is None else dw(t)
 
     def forward(self, feats, subset):
         """Reference path: refined features for the modalities in `subset`."""
         C = feats[0].shape[1]
         toks = [f + self.emb[m].view(1, C, 1, 1, 1) for f, m in zip(feats, subset)]
-        q = torch.stack([self.q(t) for t in toks], dim=1)
-        k = torch.stack([self.k(t) for t in toks], dim=1)
+        q = torch.stack([self.q(self._qk_in(t, self.dw_q)) for t in toks], dim=1)
+        k = torch.stack([self.k(self._qk_in(t, self.dw_k)) for t in toks], dim=1)
         v = torch.stack([self.v(t) for t in toks], dim=1)
         attn = torch.einsum('bicdhw,bjcdhw->bijdhw', q, k) * self.scale
         S = len(feats)
@@ -83,14 +103,25 @@ class ModalityAttnFusion(nn.Module):
         w_q, w_k = self.q.weight.flatten(1), self.k.weight.flatten(1)
         w_head, w_o, w_v = head_weight.flatten(1), self.o.weight.flatten(1), self.v.weight.flatten(1)
         w_u = w_head @ w_o @ w_v
-        off_q = self.emb @ w_q.t() + self.q.bias
-        off_k = self.emb @ w_k.t() + self.k.bias
+        if self.dw_q is None:
+            q_in = k_in = feats
+            off_q = self.emb @ w_q.t() + self.q.bias
+            off_k = self.emb @ w_k.t() + self.k.bias
+        else:
+            # The embedding can no longer be folded into the projection bias (zero
+            # padding makes dw(f + e) != dw(f) + e at the border), so the tokens are
+            # built explicitly. Once per modality, not once per pair.
+            toks = [f + e.view(1, -1, 1, 1, 1) for f, e in zip(feats, self.emb)]
+            q_in = [self.dw_q(t) for t in toks]
+            k_in = [self.dw_k(t) for t in toks]
+            off_q = self.q.bias.expand(M, -1)
+            off_k = self.k.bias.expand(M, -1)
         off_u = self.emb @ w_u.t()
         # Recompute each pair's q_i/k_j on backward: storing q and k for all
         # modalities is 8.6 GB at batch 8, the per-pair transient is ~5 GB.
-        pair = (lambda i, j: checkpoint(self._score_pair, feats[i], feats[j], w_q, w_k, off_q[i], off_k[j],
+        pair = (lambda i, j: checkpoint(self._score_pair, q_in[i], k_in[j], w_q, w_k, off_q[i], off_k[j],
                                         use_reentrant=False)) if torch.is_grad_enabled() else \
-               (lambda i, j: self._score_pair(feats[i], feats[j], w_q, w_k, off_q[i], off_k[j]))
+               (lambda i, j: self._score_pair(q_in[i], k_in[j], w_q, w_k, off_q[i], off_k[j]))
         scores = torch.stack([torch.stack([pair(i, j) for j in range(M)], dim=1) for i in range(M)], dim=1)
         u = torch.stack([self._proj(f, w_u, off_u[m]) for m, f in enumerate(feats)], dim=1)
         c = (w_head @ (w_o @ self.v.bias + self.o.bias)).view(1, -1, 1, 1, 1)

@@ -10,3 +10,6 @@ fusion: "mean"
 # fusion=mattn only: fixed (not learned) bias on the attention diagonal; 0 = v1.
 # Saved in the checkpoint, so evaluating an old v1 checkpoint still uses 0.
 self_bias: 2.0
+# fusion=mattn only: depthwise k^3 conv before the Q and K projections (0 = off = v1 + self-bias; 3 = method-1 dwqk run).
+# Identity-initialised. eval_test.sh reads it back from the run's parameters.txt.
+qk_dw_kernel: 3

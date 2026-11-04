@@ -13,7 +13,8 @@ def build_model(args, nclass, nchannels, model='unet', recons=False):
             modality_specific_norm=args.modality_specific_norm,
             sharing=args.sharing,
             fusion=args.get('fusion', 'mean'),
-            self_bias=args.get('self_bias', 0.0)
+            self_bias=args.get('self_bias', 0.0),
+            qk_dw_kernel=args.get('qk_dw_kernel', 0)
         )
     else:
         raise NotImplementedError
