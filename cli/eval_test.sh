@@ -4,6 +4,7 @@
 #
 #   bash cli/eval_test.sh                    # newest run
 #   bash cli/eval_test.sh <checkname>        # a specific run
+#   bash cli/eval_test.sh <checkname> gate   # override the fusion read from parameters.txt
 # The fusion variant is read from the run's own parameters.txt.
 #
 # Each invocation writes one log, named by the date you ran it (same <MMDD>
@@ -38,6 +39,8 @@ CKPT="$RUNDIR/model_best.pth"
 # config the training run recorded rather than relying on the caller.
 FUSION=$(sed -n "s/.*'fusion': '\([a-z]*\)'.*/\1/p" "$RUNDIR"/experiment_*/parameters.txt 2>/dev/null | tail -1)
 FUSION=${FUSION:-mean}
+# Runs older than the fusion option (e.g. the -gate run) never recorded it: pass it as $2.
+FUSION=${2:-$FUSION}
 # Same for the Q/K depthwise kernel: it decides which modules exist in the model.
 QKDW=$(sed -n "s/.*'qk_dw_kernel': \([0-9]*\).*/\1/p" "$RUNDIR"/experiment_*/parameters.txt 2>/dev/null | tail -1)
 QKDW=${QKDW:-0}

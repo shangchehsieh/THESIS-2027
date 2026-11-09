@@ -4,6 +4,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from modeling.ensemble.fusion import enumerate_subsets
+from utils.gss import gss_kd
 
 class SegmentationLosses(object):
     def __init__(self, args, nclass=3, ):
@@ -25,17 +26,30 @@ class SegmentationLosses(object):
     def EnumerationLoss(self, fused, target, df, df_full, weights=None):
         M = len(df)
         loss = 0.
+        seg = 0.
+        subsets = enumerate_subsets(M)
 
-        for subset, missing_logits in zip(enumerate_subsets(M), fused):
+        for subset, missing_logits in zip(subsets, fused):
             df2 = torch.mean(torch.stack([df[l1] for l1 in subset], dim=0), dim=0)
             self.VID_branch = self.VID_branch.cuda()
             MI_pred_mean, MI_log_scale = self.VID_branch(df2)
 
-            loss += self.DiceCoef(missing_logits, target) + self.Cal_MIloss(df_full, MI_pred_mean, MI_log_scale)
+            d = self.DiceCoef(missing_logits, target)
+            seg = seg + d
+            loss += d + self.Cal_MIloss(df_full, MI_pred_mean, MI_log_scale)
 
         if self.args.loss.output == 'mean':
             print("self.args.loss.output == 'mean'")
             loss /= len(list(itertools.combinations(list(range(M)), M - self.args.loss.missing_num)))
+
+        gss = self.args.loss.get('gss', None)
+        if gss and gss.beta:
+            # L_all = alpha * L_task + beta * tau^2 * L_kd (GSS, Eq. 3); beta = 0 is off.
+            singles = [fused[subsets.index((m,))] for m in range(M)]
+            kd = gss_kd(singles, gss.tau, gss.t_l, gss.t_m, gss.rho, gss.mask_rate)
+            term = gss.beta * gss.tau ** 2 * kd
+            loss = gss.alpha * loss + term
+            self.gss_stats = {'kd': kd.item(), 'seg': seg.item(), 'term': term.item()}
 
         return loss
 

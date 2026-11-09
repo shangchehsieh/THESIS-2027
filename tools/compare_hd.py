@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-BASELINE = "logs/eval_test_base_lr_fix.log"   # HD†: 88.80 / 83.25 / 69.57
+BASELINE = "logs/eval_test_1_baseline.log"   # HD† (our reproduction), 100-case test split: 89.04 / 83.39 / 69.70
 NOISE = 1.0                                     # points; within this = on par
 
 

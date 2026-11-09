@@ -1,3 +1,13 @@
 name: "enumeration"
 output: "mean" # mean / list
 missing_num: 3
+# Attempt 2: GSS distillation (utils/gss.py). beta = 0 is off (= no GSS).
+# L_all = alpha * L_task + beta * tau^2 * L_kd; all values are the GSS paper's.
+gss:
+  alpha: 0.7
+  beta: 0.3
+  tau: 8.
+  t_l: 0.65
+  t_m: 0.75
+  rho: 0.3
+  mask_rate: 0.2

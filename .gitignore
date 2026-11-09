@@ -17,3 +17,6 @@ __pycache__/
 # 其他
 .DS_Store
 *.md
+
+# raw BraTS2020 NIfTI downloads (Kaggle mirror)
+BraTS2020_raw/

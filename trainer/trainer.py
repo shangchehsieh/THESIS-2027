@@ -162,6 +162,8 @@ class Trainer(object):
             print('Loss: {:.3f}'.format(train_loss))
             self.writer.add_scalar('train/total_loss_epoch', train_loss, epoch)
             self.writer.add_scalar('train/lr', self.optimizer.param_groups[0]['lr'], epoch)
+            for k, v in getattr(self.criterion.__self__, 'gss_stats', {}).items():
+                self.writer.add_scalar(f'gss/{k}', v, epoch)
 
         return train_loss / len(self.train_loader.dataset)
 

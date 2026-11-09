@@ -25,6 +25,11 @@ class Ensemble(nn.Module):
         if fusion == 'mattn':
             self.attn = ModalityAttnFusion(self.module.channels[0], in_channels, self_bias=self_bias,
                                            qk_dw_kernel=qk_dw_kernel)
+        elif fusion == 'gate':
+            # Region-aware gating (2026-09-21, stopped at ep 180), restored for inference only so its
+            # checkpoint can be evaluated. Training it needs the gate-weighted EnumerationLoss, which
+            # lives in git stash@{0}, not in this branch.
+            self.gate = nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1)
         elif fusion != 'mean':
             raise ValueError(f'unknown fusion {fusion!r}')
 
@@ -36,6 +41,12 @@ class Ensemble(nn.Module):
         if self.fusion == 'mattn':
             terms = self.attn.scores_and_terms(self.module.outc.conv.module.weight, *feat)
             fuse = lambda subset: checkpoint(self.attn.fuse, out, *terms, subset, use_reentrant=False)
+        elif self.fusion == 'gate':
+            if self.training:
+                raise NotImplementedError("fusion='gate' is inference-only in this branch")
+            def fuse(subset):  # softmax over modalities of a shared 3^3 conv on each stream's logits
+                w = torch.softmax(torch.stack([self.gate(out[i]) for i in subset], dim=0), dim=0)
+                return torch.sum(w * torch.stack([out[i] for i in subset], dim=0), dim=0)
         else:
             fuse = lambda subset: torch.mean(torch.stack([out[i] for i in subset], dim=0), dim=0)
 

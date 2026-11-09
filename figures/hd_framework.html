@@ -25,7 +25,7 @@ body {
   font-family:"IBM Plex Sans", "Noto Sans TC", "PingFang TC", system-ui, sans-serif;
   font-size:15px; line-height:1.6; padding-inline:clamp(16px, 4vw, 48px); padding-block:40px 72px;
 }
-main { max-width:1180px; margin:0 auto; }
+main { max-width:1320px; margin:0 auto; }
 .eyebrow { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin:0 0 10px; }
 h1 { font-family:"IBM Plex Serif", Georgia, serif; font-weight:600; font-size:clamp(24px, 3.2vw, 34px); line-height:1.2; margin:0 0 10px; text-wrap:balance; }
 .lead { color:var(--muted); margin:0 0 28px; max-width:68ch; }
@@ -92,13 +92,13 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
 </style>
 
 <main>
-  <p class="eyebrow">Cheng et al. · IEEE/CAA JAS · Fig. 1 + cross-modal attention DC (v1 + self-bias + DWConv Q/K)</p>
+  <p class="eyebrow">Cheng et al. · IEEE/CAA JAS · Fig. 1 + DC (self-bias + DWConv) + GSS (Attempt 2)</p>
   <h1>Hölder Divergence Framework<span class="tag">DC 改為跨模態 attention</span></h1>
-  <p class="lead">依論文 Fig. 1 重繪，DC 模組改成<b>跨模態 attention</b>：同一 voxel 的存活模態互為 token（<span class="eq">f<sub>i</sub>+e<sub>i</sub></span>），單頭 attention 交換資訊，分數對角線加上固定的 self-bias <span class="eq">b = 2</span>；<b>新增：Q、K 的 1×1 投影前先過 depthwise 3×3×3 conv</b>，讓注意力權重參考鄰域。輸出經零初始化的 <span class="eq">O</span>（1×1 conv）殘差加回，再各自過共用 OutConv、取平均。左上 inset 為實作的 3D U-Net。</p>
+  <p class="lead">依論文 Fig. 1 重繪，DC 模組改成<b>跨模態 attention</b>：同一 voxel 的存活模態互為 token（<span class="eq">f<sub>i</sub>+e<sub>i</sub></span>），單頭 attention 交換資訊，分數對角線加上固定的 self-bias <span class="eq">b = 2</span>；<b>Attempt 1：Q、K 的 1×1 投影前先過 depthwise 3×3×3 conv</b>，讓注意力權重參考鄰域。輸出經零初始化的 <span class="eq">W<sub>O</sub></span>（1×1 conv）殘差加回，再各自過共用的 segmentation head、取平均。左上 inset 為實作的 3D U-Net。青色虛線為 <b>Attempt 2 的 GSS 蒸餾</b>，只在訓練時使用；紅線是 <span class="eq">ℒ</span><sub>GSS</sub> 的反向傳播。</p>
 
   <figure>
     <div class="scroll">
-      <svg class="fig" viewBox="0 0 1436 770" role="img" aria-label="每個模態 x_i 經共用 Encoder 得 d_i、共用 Decoder 得特徵 f_i；DC 模組中，Q、K 先經 depthwise 3×3×3 conv 再做 1×1 投影，存活模態互為 token 做單頭跨模態 attention（對角線加固定 self-bias b=2），輸出經零初始化的 O 殘差加回 f_i，各自過共用 OutConv 得 h_i′，取平均成 Ŷ，與 Y 計算 Dice 與 Hölder 損失；各 d_i 與其平均 d_f 之間計算互資訊損失。" xmlns="http://www.w3.org/2000/svg">
+      <svg class="fig" viewBox="0 0 1640 846" role="img" aria-label="每個模態 x_i 經共用 Encoder 得 d_i、共用 Decoder 得特徵 f_i。DC 依序為：Q、K 先過 depthwise 3×3×3 conv，V 不經過；存活模態做跨模態 attention，對角線加固定 self-bias b=2；輸出經零初始化的 W_O 後與 f_i 殘差相加；共用的 segmentation head 得 h_i′；對子集 S 取平均得 Ŷ_S。15 個子集各做一次，得 11 組多模態輸出與 4 組單模態輸出，全部與 Y 計算 Dice 與 Hölder 損失。各 d_i 與其平均 d_f 之間計算互資訊損失。訓練時，4 組單模態輸出投票得到固定答案（T1c 帶 TC、ET，FLAIR 與 T2 帶 WT），反向傳播不經過投票路徑；固定答案再與 4 組輸出計算 GSS 損失。GSS 的反向傳播到達 V、W_O、segmentation head、decoder 與 encoder，不到達 DW、Q、K。" xmlns="http://www.w3.org/2000/svg">
 <defs>
   <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>
   <marker id="arB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3B7DD8"/></marker>
@@ -111,6 +111,8 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
   <marker id="arR2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C98E8E"/></marker>
   <marker id="arO2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#E7A86F"/></marker>
   <marker id="arY" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#E4C96A"/></marker>
+  <marker id="arGssT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1F8A8A"/></marker>
+  <marker id="arGrad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C0392B"/></marker>
   <marker id="arK" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
   <linearGradient id="frame" x1="0" x2="1" y1="0" y2="0"><stop offset="0.5" stop-color="#8FB3D9"/><stop offset="0.5" stop-color="#D9A5A5"/></linearGradient>
   <clipPath id="thumb"><rect x="0" y="0" width="56" height="56" rx="4"/></clipPath>
@@ -305,7 +307,7 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
 <line x1="1141" y1="142" x2="1141" y2="130" stroke="#8BC34A" stroke-width="1.6" marker-end="url(#arG)" opacity="1" fill="none"/>
 <line x1="1141" y1="200" x2="1141" y2="188" stroke="#8BC34A" stroke-width="1.6" marker-end="url(#arG)" opacity="1" fill="none"/>
 <line x1="1141" y1="258" x2="1141" y2="246" stroke="#8BC34A" stroke-width="1.6" marker-end="url(#arG)" opacity="1" fill="none"/>
-<rect x="30" y="356" width="1386" height="396" rx="16" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".45"/>
+<rect x="30" y="356" width="1590" height="472" rx="16" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".45"/>
 <text x="82" y="418" class="math" text-anchor="middle">x<tspan class="sub" dy="5">1</tspan></text>
 <g transform="translate(114,384)"><rect width="56" height="56" rx="4" fill="#0b0d12"/><image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAAAAADH8yjkAAAV40lEQVR42p2a2a8l13Xe17CHGs58x57ZzSYpsRVRFCzZlqDICZAAQQADBvKQIHBekn8wQJCXGA78EsigFcuWSIni0OzhTn3vPVOdGva48kBIltTNwdmvhV2/9e3CBmp930L4Gos4AACYb2ZK2bzF4x4lmMTSV23aPKMPv2QvfumbUQDq298g83gnfvvOnaBVVE3qb2/+bz1aRzW+eRFnPPrk+Zn8/wBQAB7eLkrnAuII7z9/frA/vgrt5YO995Ij1adaBVNytRmd/Ry/AKG+RJvg4YO5u24TYxfSTP3sWtFV3/Qnu91t7iRBzj3jVTfec+bg6gsI/CXlP/jO3d3qKigdtqme7H14OXC6Hv36Ymjv2G0Goey1cl7Hrpiarcd/HgDqHxxvXziftR0ui4m1HRxO0/RIvSjrO+MuEkjFMYWoMMOA01E7fH0AIlRvvNU9bxVE4ryqpuS7ThKCu7/MsxL7BMA5CmdtIRBiyKN9s37VF+VXn85r36XrVpkIwOKk1i6DHVFIwbflzqUkGil2RhElwKQoc5Djg8v0NRXQg29uN4yiJCmIZNgnIe5dpLFc1jFRylmSlDpnzoIqiYLYdbPb5wm/GoBw853j640mxAiUhayGBMk5UJXBtJuagpAzJBRBEJsDGskpiM4T3+SvBKDcfRTXkUGyKEiSKxYE1KYoi8E55UeAMRWFUtnlSonoiASCGarxmbrl+68AoNx+tB50SipjRonZ1uANFYUKQ+8UsUzWPVMiFQvKbLULbCQqD1NzZqryVt99KQDlwbe7PoBhyoAxIBeFcVHBdgfipzrrdr7TksVHFxHKwkJ2YEVCNT6jCSWawhbxCwEo9x+tHaksFiOHgazOdZU76lqmTHUWCfNoBssegWhyUHAKHBN4U8flJCBexteriy9UgHL8qO1yNOUQNPBODOPdG1GkT9ORKNEQlD/yRIl0rnS5mNSzWruEqEx0RolHU3SH+xf51QCUo+/vWkIMwrEt1M6k4hjrcOl9MKSqzSRGPejegxKNgGnwzehGqLoQTIkKNOfCZGlme79zq/n36v9e0yIgWq8R81LMuHj/5+JXWcnQ7WiyS1q6sdMICDhA6ju/Kt87uxdy8CKIClOUgO306Cy9AkD8TuzRIOYQcxx2VNX6g/X+a2tV2gl4hcBi8nIfhFANqDHmpLkf/WP7Vi8xOgkhQeq8GDeOa3wJgHD/oKUYveuC64B5xOWvV6Nb1vuBVKGrQZt25pdcW+Ahl9EzZWSpysfu9bbKKeWQI2YENlicvkrBI+29g5QRsxDWOP7s3BzvdYHj0KRaZUE/Pe228/HQc83iAVgJy2x9UU097vSECJnZGMISVy8D7FGNWpWWKqVUb2AK79PsWBrA6CHhVikBbjZUTLs0pj6ICoYARWQ1HLccuFLCYC2HSPm4uMLfByDcfrDVIqysBqV1CvfOL8v9eS8k0XCi5FnTTioeSmuV60ErMV4BIazyAnxKiokL7iJbheE4L/F3AQj8J+JdTD5LzjpXq/roozSbY4wGCUjEaMLO7I/wsp3ub51ijRWKcJnddaDFDnBcKt/15dxKCIJH6w4BgH6jQF4b+RSRDeXdZpBVmm3caGKHSJBQBq6ULc/zfojHb6WmccwKKsVM1gTIch7GABiD0KgIg0sgg7zG8E8AlLtvdDGxRjba5tWGC3OKJkUnNikkZkbbNCOzO/kFvkvbmbYhaglkSDAnDFdTKLcvvJoWiNl7EN/t3RP8LUDu/HHY9FAFTW2I4LXY67Xi1Ba2ZE1QULRxRYWa7+9/qo52ArSrITFBIWoAgWWqiKLzbet2rRcg8v0hy+cAhPG795td07kBQCkfuxIyf3zlKFMhqUA1gpQgDFFJUpUdRvjcCtYJ2MTUUw8AbT/t7ASw94NkrWIkSdP7nx8RyvTdY3OZK52GJDiaitPBnjchNK0khLpABYRpiG/N0njvRnwajlfX/b5WhIHBhwiAOU97hxIVIYx0YkL25qFBJAAx35p1jnJCRkU9jp1VuXTCce2GRClCbYtIIS6Gs23rLu9uT4rRrhuJZJvVoF0LiBBnMbBGo40CUgShp2XxSISA7z84chjyrg0o2fcvPgyjxhcIufeuGY1Sn3JW9chraZYBXPDTZaip0m1LWUk3WQ0oAJ2e+kAGWUghpZRTjM29EhTm/l2ffFYm5gi7FBkLhkLX10HKo+kkdoNhSCYebjw2/Y3rru73sqpHrUjehfEEr0gyQJFrnyGrGIlpQDY2S4L9ZwTyWrUUHpbdEHNyXGpSJnCeAcI7P1zMl50dMEYXHO7PTdPsrQa/7UfWAOYhzZQZCskoUBdcCWF0knwCVSNZrXoCJfBgQ93SkYUMVOWIGhITLgCATffByT6ZhLoHAeMa2U6rUMjpna66eR7AInO4c13Pnp8LK8GIotWIYwfB+DQqU0QFFKV44YqxwpTZJfYQgMN2Pmvg9PVnaW9POA+VF0J12i/qJaI/WD2B1YGpANsFcLHv6jtXCdhjAWFSB5Ws2slMTGzzPYaD2361qw4W52VJCipVFd5lDzhRmt/p+rcqQGEmKMLqGuvJdUDgkZPr9h6lsgio9fHm4ubT+sZZYKW9WGDfjyBm1G3fjhmO7y67cWVPNkfsWWnPltrSaD0Z18fP1R+X66CUKoyStuunZaeCs8GyjJtz8fuH2A6TBQVqHQVXEVOwo7iLVWkBxddyzXB7b1uWMeZ6LgIZAaBpHrx9OJvVNHTV3tmAnYNmm8WMFQ2t7UVzJ6Nbb6aZy/tA3lFUzzl0jJlAMlTSF2BAbKricsu4/xqDM3VXDNHGhGTcuX330c3F4UgVdXOqu7WD9aULA6Qb5ZYjjEV8/NNyZ73ZbbxodV4OK8g1E+VAHBAVu1blmHR3MTCs8KjZDBymlMmhRHMRHn7vYDY3ajZ2wYW+xWWXMJFQDAnIUeH13FLn/HVsXNBFZ8n3VFDUyAlDBg+SFaIWGhn+s6trJcravkIngw6Z1uX3vjkGVlhNLVmv+o3xEbhg72mf4rq4oTLsRQde0jCkFmeT/XVXGy2ZoENKGbEqVMoJuSr4Ryu+pVgFgXbwCmPCzZv/8kAThlgVlSkrnbXSFiJYrk0opy9uPRxfyF7K4kJiSSkCWvaUlQcdkRG8KsaitfXbMC54tJzuD8M6BSSxJfEc+3//egk5ByBrQY+rYjq58a295kUrkxy8qY737j3TU6c59zFLVaR2c006WA8mgeUYaxd8llwoHdSUt3U9yg5LwEmhiWG9/MGP0UXHSVmwEHlR69Lg4t2j3dAjSkB4cVkkjBl81qxLENGuSTZrh14JRlKBd8Fml7CwlmGCowwyN9amXbu6lB/8K3N10TlWIqX4Tk+PqpGNa/ftdyd5SAzhwfq9BypECgE0KpUTFyprW9baZULQwXGwvGBmUPOG4ag7FN6IUf1yC8XeH/3JYvPifPMiFZR0SrLdznXeezj5dLt3d6K2g4p4dI3Haw5SBDIFJikRURcGkPRgJUQ78oZnnaAd0y9YbrkZOpwN1w3UxeLWN+5Rd3URr9fKeGbfNb8MOYw4O7/bm3K7FtUtTFcM6AcRLLJjUVqIR3W/NTpH3Rpjg0NMiuLVsycMxajQTaXWzaIGmd/95hT1ajnkXvYkY0jmV4+rM2sPj69+9exSZieNJQuhcsmTUllp8pRdplIb23MRnPf7tXgKvaKiHJ52DGm/kDRqE41Srg7vqb5LsWucs/MUk2TlH5tyx5708pOn66X4YIjceCeBbZRUF+A2DidArLg15qrjQyatlKIkI34SGPwtO1i45qK31I++dfzwxrpPV9nRjChYH4rr7oC5/2vz9hCm/oSYzGRXbSlm8VEVMW87zEXtVKHCdhIGDTVlSBWg5dMTYIQ4Mcl41L7eHf7Ff/j2jeO3dhebjyqzZ3trumDT6sC47zz+yfAN8+Qqi440b6zLCWMohaTb9UWPY6MSweXU5AwjajszU9o0T1tgwHa8TxFId2r2l/+5yJB59Enbd/W4JB1gU9j17qB8/UfuwxcP8KNRQdJVWjUxh8CaIDetLxOOxCCXq4p2fSI2m5Wbp+Z0mYABQaazLQjn/Od/aYUQMVxurkpUM0VFsFi6aN85M98Zd08eHTVXuTLGSicCNTC6TR8SUDXJVD3TzZ5vVB3JHJRutbzexgwMAL0dkTOY7/7HB4IAgLj87JJ0pWEkhodpnS63I7c79BcnmD8myzNUoatyTtx3IHUud/bQzvTfPTleNM5y2tI03sfnNnb4+b/p2YZYQvHoAQgIINiFjya5QM2ApFs1npxehL9//+6f3Tr9tex6U4BoUhDS4InMTqamj1mrAwWRLCmTu5V1i2S3IJ/3B97Mg0mzf/MuAyBsu+L8w588fz1DXY5UpGTL53TVx4t2fPPu9WoZzHjc3bnsE+IwIDsgAV6oWJiin6boTF2gp6I4fZ5/24C08xe1Xvzbe4nw7H/93Z3ZT/62fVIt9FGldOas6mrw19PdR2d88/bccmVou2heKAhJspWscZhPnEBRX/JEer/QVmeVn+3wt4C8gkWx+P5tkv/xV3Lv7dP/uR4/oPGetRqs17mQDWK29eajf1hOjsp8fHbx7GC+6ZVWTSnDKEM5QSG29NGdIjRgNOni+kn6HddxQNOP/c799N6PJwB/834+GJWFqQpnTIhVEUY5r6vF3uXpZz+zUlyhj3n/rEsKNPnCahZfRsC8GD791lj6ZO2Ff96j/FOPhkGPi9fWf/3Zd48jPPub3U/TohoVk5pLTdFoW7nUt+dX47t1Od1/+MY0VZjhSiSw4zmn3o6yUVz4z8gXFpj3/E+8/70uE1d305Qev/1GxXgWnhznJlw+HR9OK6smVmUeekdBhi3bFPXt4sqMp/CJWBaZahmAJpkLbS5efDP1ZJBp/Myl3wfI7ljdfXBwF8PJ+sOlH49H03uPHtyqQZVTriHGbeak3GbRvr+u9lYrhIPTVR3yrEqBnVWWjb3+SfWgoqALCem0+YNGHHszO6TLYJ6uf/3LlRo9/OG7syc/PaluqiZPF1F1zVZDVIws6G9UW7MzFymYaoaMmIoqVahNaw4HJlRB3HOPf9jph5vFrB92sLmCZZkqc/7zU/XsvfM3ZxfNfpmCd8CYKYhE7V5r+lqGKtIcaUjAWFEReCJBCQfnEp1f5pesBHdLjynAqPzoZGJ9d/Fk03odHp/emvZqbytpJzpnCqFTU5n7QC6qScsUNUatlG0VGgmYCRTsLlfavey23D664qurvr38Kz1O+8Xg1lfNsFzf/+7cm2IrcRe8EbS9FEf2PGwzgck+k/I8QU5lXcLf54PkCdTlFc+28hLg+O3z0GyWZ+HH3++vr4rhxfTWD9+9auDWw+SqdVYvvOaCfbbTG+3JELqSjG56IFYpl7G0xdXPUINVFIdwb9m8bO8v+fAMRnY6+8ZFLNLuvM9/+l/Mjf/+s81/vbuCUYxzQXCRpmpPTt2QPOgB6py6EUdO6IHlUMeV8tHDqNy8Ij+4upjuHyzYm0//IeQQVXV5p4r/er3lvoRUsFmYEK/ZAqfHF4M3OtSYuGwF87BPCsKgDuzeYss6na9deoVn5+NExY8vqnz6iRqNenHyn/R/+/DocvzG4XnZi9tqE2OEcrE92Q7W9DsxkAOzJD12SEZgi7HLGvduPN6EV5mCbo6fnq5ggzNhF9Go1Xur+EQvjnVTKbf2gEjV3p7/1ZLJYCvRFioUbV/YwiOa8vzyMELOrR7LKcsrfFMZwVU3nnL51uhiR1zlX1z+u3wlrz9o3J3yxCkuyv17B1fvPVaqB9vnvi1vxGXCrCsjadr84515cCETxf31Dl8BSIvsYnlPr17/0aXTSlwunCbpLOTR1Yqims4m+dP//Zis6mF/5yG74/kTTrGehGR3H9ydS5AUSztAefHyRUMYH0hLYxsCftt+ElXTPB6+u0dX58dQtRv2epw2/pOz0wQGN+lN55SE3Vy9wFwWKcHZ0dyH6CkyCai1w5cB9QLayr7objp1sDwrtp1/+NopvH0b2H+UBjNan3rcx7zqx8Wzm/POI0nfKNOL8XM/TKsewCeyNhk97NpXApKgyst6sdRHD2ZTN3+zn9/BXLp23UbYPcXizTtPuyeXc6QZDug9QJuMYA4cWGFWyZMFV0uFz/wrcjStvIVkh4/L76xjMf7GH50ZVBfX5WLdR3I7XBcKPjl5/HzMdNCpwsqgBvLsIRbLKiSPnHKBZLNyo6M2v6xgsi8YM8W0oWpR1xx++fPtVVtW7WbIpt9ePHPm4//zt++Pp8roATVzD4EEgUUriaGjIdqQtWRATafysgKVESm1fVVvPnuqSafTMCxq33YpmRiCh80Hv1rXRxVT9mGWI+iBB5MQIInkKE5IootcoOiL9Hk0qP4gd1zoErrxjeQiIQ0TBvI+cswNGMlweYH3NCJhODfgE6akvSTOkDmJU1FhU0xJ0Oph96osM8Cdh4RWY5Sc/JAheJPrg9ytBpdVbs52+tBkIlqKXnTiXUCwQBA1pBwZBWnPDqXN5fUn1yAvX7TheDzFzBhERE+KcmaEfFmGTRsVy/bF2k4kKszX26ORc64XoSwxETFkYhST9ai6/pTnF79avyruRdl/qyLFvL9XUNCQaFh3gSu9CxrT8GKJ44BZabfdq0LbA/E1KApZlAmBCnEKrCl0enoZ0hdkOF2wu+31i3Zeg4BASDlmiEMv4lzbZBsFkyc1V60PLOhjYkalsM2cckJmyVkv7KdfnEIN41mwi9f2ggZARg85UxQFKXZdL9KAUmp61gMyJtFFLxBzjgCMzGQMaqW1fX+HXxRYS9zt770x5gSJJecM0aoAEQF2axHZ5VKJoc9uLTBTwnHHItRBaYsuaksgyIrj++cgX5yIn0xud+OcrUMgzIp9bBqR3De9TiGMTAQTxavYJmDnU8oa7GHpvNfAgYF8s1p9aeSeP253Z1ObUkz1Hoau7ULy0fUS2gpBN1QAUXBu6FXt3QBgS6W3uLcVyIyEMTdfkem7z3a3t5lAgoJx08YBUghDCKh8ZgGGLCnGjIYyODc65BYprR5doAoGM9I6fmXc213iPvQQaRaazofeZbIKneKIaDWLflbdj54NDEN1ux/YAJ7fiqKBCo1PVviVgTXmTTx2XR7b5qLrBp9JCagIRQYAxjS6luMoMuRg9rvLrJjU9VgTVbAdPt5+jbEHATxJ900IzwMDO2QUZKiHoIVhoBq8KFEtajJhKFhD4ro/QNWfnH4+i/HVcxWC56u9/YxKI2EzIUiUdBaoMmIuuvUcUgelYJJSG6Ii4i91d7oEBJGvORmCAmCYaDQdm66EyDHFaAqMpMsPTm79i003aoINBjmTz9eX4Tebvu5kiACKB4DmrD4gbUGwaAgR/Nx8cAKrptT+2tgxuLjrr4bPCxX5Zw/PIAgATuRggdF6xcXFVb1aAQDN1AAjGDDEIX9B6V9rOuc3uu38eNcjpsvwh0++cv0/CJmXtW2LtJYAAAAASUVORK5CYII=" width="56" height="56" clip-path="url(#thumb)" preserveAspectRatio="xMidYMid slice"/></g>
 <text x="142" y="450" class="mod" text-anchor="middle">FLAIR</text>
@@ -365,91 +367,121 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
 <text x="907" y="521" font-size="11" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">+ e<tspan font-size="8" dy="3">2</tspan></text>
 <rect class="e-pill-fig1" x="884" y="653" width="46" height="16" rx="8" fill="#FFFFFF" stroke="#1D2230" stroke-width="1" stroke-dasharray="3 2"/>
 <text x="907" y="665" font-size="11" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">+ e<tspan font-size="8" dy="3">n</tspan></text>
-<rect x="948" y="370" width="232" height="284" rx="10" fill="#EDEEF0"/>
-<text x="1064" y="385" class="block-sm" text-anchor="middle" style="fill:#000">DC · cross-modal attention</text>
-<line x1="936" y1="412" x2="956" y2="412" stroke="#C98E8E" stroke-width="1.5" marker-end="url(#arR2)"/>
-<polyline points="958,412 958,389 1062,389 1062,402" stroke="#000000" stroke-width="1" marker-end="url(#arD)" opacity=".55" fill="none"/>
-<line x1="1010" y1="412" x2="1016" y2="412" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<rect x="1018" y="402" width="22" height="20" rx="4" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
-<text x="1029" y="416" font-size="11" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000">O</text>
-<line x1="1040" y1="412" x2="1053" y2="412" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<circle cx="1062" cy="412" r="9" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
-<text x="1062" y="416.5" font-size="13" text-anchor="middle" style="fill:#000">+</text>
-<line x1="1071" y1="412" x2="1080" y2="412" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<rect x="1080" y="401" width="34" height="22" rx="4" fill="#D9A5A5"/>
-<text x="1097" y="416" font-size="10" font-weight="600" text-anchor="middle" style="fill:#000">outc</text>
-<line x1="1114" y1="412" x2="1120" y2="412" stroke="#000000" stroke-width="1.2"/>
-<rect x="1120" y="401" width="28" height="22" rx="4" fill="#E3B7B7"/>
-<text x="1134" y="416.5" font-size="12" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000">h<tspan font-size="8" dy="3">1</tspan><tspan dy="-3">′</tspan></text>
-<line x1="1148" y1="412" x2="1156" y2="412" stroke="#000000" stroke-width="1.2"/>
-<line x1="936" y1="484" x2="956" y2="484" stroke="#E7A86F" stroke-width="1.5" marker-end="url(#arO2)"/>
-<polyline points="958,484 958,461 1062,461 1062,474" stroke="#000000" stroke-width="1" marker-end="url(#arD)" opacity=".55" fill="none"/>
-<line x1="1010" y1="484" x2="1016" y2="484" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<rect x="1018" y="474" width="22" height="20" rx="4" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
-<text x="1029" y="488" font-size="11" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000">O</text>
-<line x1="1040" y1="484" x2="1053" y2="484" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<circle cx="1062" cy="484" r="9" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
-<text x="1062" y="488.5" font-size="13" text-anchor="middle" style="fill:#000">+</text>
-<line x1="1071" y1="484" x2="1080" y2="484" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<rect x="1080" y="473" width="34" height="22" rx="4" fill="#D9A5A5"/>
-<text x="1097" y="488" font-size="10" font-weight="600" text-anchor="middle" style="fill:#000">outc</text>
-<line x1="1114" y1="484" x2="1120" y2="484" stroke="#000000" stroke-width="1.2"/>
-<rect x="1120" y="473" width="28" height="22" rx="4" fill="#F5C9A6"/>
-<text x="1134" y="488.5" font-size="12" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000">h<tspan font-size="8" dy="3">2</tspan><tspan dy="-3">′</tspan></text>
-<line x1="1148" y1="484" x2="1156" y2="484" stroke="#000000" stroke-width="1.2"/>
-<line x1="936" y1="628" x2="956" y2="628" stroke="#E4C96A" stroke-width="1.5" marker-end="url(#arY)"/>
-<polyline points="958,628 958,605 1062,605 1062,618" stroke="#000000" stroke-width="1" marker-end="url(#arD)" opacity=".55" fill="none"/>
-<line x1="1010" y1="628" x2="1016" y2="628" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<rect x="1018" y="618" width="22" height="20" rx="4" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
-<text x="1029" y="632" font-size="11" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000">O</text>
-<line x1="1040" y1="628" x2="1053" y2="628" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<circle cx="1062" cy="628" r="9" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
-<text x="1062" y="632.5" font-size="13" text-anchor="middle" style="fill:#000">+</text>
-<line x1="1071" y1="628" x2="1080" y2="628" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<rect x="1080" y="617" width="34" height="22" rx="4" fill="#D9A5A5"/>
-<text x="1097" y="632" font-size="10" font-weight="600" text-anchor="middle" style="fill:#000">outc</text>
-<line x1="1114" y1="628" x2="1120" y2="628" stroke="#000000" stroke-width="1.2"/>
-<rect x="1120" y="617" width="28" height="22" rx="4" fill="#FBE7A3"/>
-<text x="1134" y="632.5" font-size="12" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000">h<tspan font-size="8" dy="3">n</tspan><tspan dy="-3">′</tspan></text>
-<line x1="1148" y1="628" x2="1156" y2="628" stroke="#000000" stroke-width="1.2"/>
-<text x="1029" y="566" class="dots" text-anchor="middle" style="fill:#000">⋮</text>
-<text x="1062" y="566" class="dots" text-anchor="middle" style="fill:#000">⋮</text>
-<text x="1097" y="566" class="dots" text-anchor="middle" style="fill:#000">⋮</text>
-<text x="1134" y="566" class="dots" text-anchor="middle" style="fill:#000">⋮</text>
-<rect x="960" y="398" width="22" height="248" rx="5" fill="#F6D58E" stroke="#B8860B" stroke-width="1.4" stroke-dasharray="4 3"/>
-<text transform="translate(975,522) rotate(-90)" font-size="10.5" font-weight="600" text-anchor="middle" style="fill:#000">DWConv 3³ → Q, K（新增）</text>
-<line x1="982" y1="522" x2="986" y2="522" stroke="#000000" stroke-width="1.2"/>
-<rect x="986" y="398" width="24" height="248" rx="5" fill="#B8A7D9"/>
-<text transform="translate(1002,522) rotate(-90)" font-size="10.5" font-weight="600" text-anchor="middle" style="fill:#000">attention · self-bias b = 2</text>
-<line x1="1156" y1="412" x2="1156" y2="628" stroke="#000000" stroke-width="1.2"/>
-<line x1="1156" y1="513" x2="1157" y2="513" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
-<circle cx="1160" cy="513" r="0" fill="none"/>
-<rect x="1160" y="500" width="34" height="26" rx="6" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
-<text x="1177" y="518" font-size="11" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000">Avg</text>
-<text x="1064" y="672" class="small-em" text-anchor="middle">細節見下方 Fig. 2（DC 放大圖）</text>
-<polygon points="1202,506 1222,506 1222,496 1240,513 1222,530 1222,520 1202,520" fill="#EBDCA6" opacity=".9"/>
-<rect x="1246" y="392" width="44" height="40" rx="7" fill="#EDEEF0"/>
-<text x="1268" y="419" class="mathbox" text-anchor="middle">Y</text>
-<rect x="1242" y="480" width="52" height="66" rx="9" fill="#EDEEF0"/>
-<text x="1268" y="521" class="mathbox" text-anchor="middle">Ŷ</text>
-<rect x="1246" y="594" width="44" height="40" rx="7" fill="#EDEEF0"/>
-<text x="1268" y="621" class="mathbox" text-anchor="middle">Y</text>
-<rect x="1350" y="408" width="66" height="58" rx="9" fill="#EBDCA6"/>
-<text x="1374" y="444" class="loss" text-anchor="middle">ℒ</text>
-<text x="1383" y="448" class="loss-sub" text-anchor="start">dice</text>
-<rect x="1350" y="550" width="66" height="58" rx="9" fill="#E2CBE8"/>
-<text x="1374" y="586" class="loss" text-anchor="middle">ℒ</text>
-<text x="1383" y="590" class="loss-sub" text-anchor="start">HD</text>
-<rect x="1350" y="672" width="66" height="58" rx="9" fill="#BFE4E0"/>
-<text x="1374" y="708" class="loss" text-anchor="middle">ℒ</text>
-<text x="1383" y="712" class="loss-sub" text-anchor="start">MI</text>
-<line x1="1290" y1="412" x2="1320" y2="412" stroke="currentColor" stroke-width="1.2"/>
-<line x1="1294" y1="513" x2="1320" y2="513" stroke="currentColor" stroke-width="1.2"/>
-<line x1="1290" y1="614" x2="1320" y2="614" stroke="currentColor" stroke-width="1.2"/>
-<line x1="1320" y1="412" x2="1320" y2="614" stroke="currentColor" stroke-width="1.2"/>
-<line x1="1320" y1="437" x2="1348" y2="437" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)"/>
-<line x1="1320" y1="579" x2="1348" y2="579" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)"/>
-<polyline points="570,660 570,701 1348,701" stroke="currentColor" stroke-width="1.4" marker-end="url(#arK)" fill="none"/>
+<!-- DC stages, then the 15 outputs split into 11 multi-modal and 4 single-modal -->
+<rect x="940" y="362" width="272" height="310" rx="10" fill="#EDEEF0"/>
+<text x="950" y="376" font-size="11" font-weight="600" text-anchor="start" style="fill:#000000">DC (Fig. 2) · runs once for each of 15 subsets S</text>
+<text x="978" y="390" font-size="10" font-weight="600" text-anchor="middle" style="fill:#000000">DW 3³</text>
+<text x="1036" y="390" font-size="10" font-weight="600" text-anchor="middle" style="fill:#000000">attention</text>
+<text x="1098" y="390" font-size="10" font-weight="600" text-anchor="middle" style="fill:#000000">seg. head</text>
+<polyline points="936,412 962,412" fill="none" stroke="#C98E8E" stroke-width="1.5" marker-end="url(#arR2)"/>
+<polyline points="992,412 1014,412" fill="none" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
+<polyline points="1056,412 1076,412" fill="none" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
+<line x1="1118" y1="412" x2="1204" y2="412" stroke="#000000" stroke-width="1.2"/>
+<text x="1160" y="406" font-size="12" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000000">h<tspan font-size="8" dy="3">1</tspan></text>
+<polyline points="936,484 962,484" fill="none" stroke="#E7A86F" stroke-width="1.5" marker-end="url(#arO2)"/>
+<polyline points="992,484 1014,484" fill="none" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
+<polyline points="1056,484 1076,484" fill="none" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
+<line x1="1118" y1="484" x2="1204" y2="484" stroke="#000000" stroke-width="1.2"/>
+<text x="1160" y="478" font-size="12" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000000">h<tspan font-size="8" dy="3">2</tspan></text>
+<polyline points="936,628 962,628" fill="none" stroke="#E4C96A" stroke-width="1.5" marker-end="url(#arY)"/>
+<polyline points="992,628 1014,628" fill="none" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
+<polyline points="1056,628 1076,628" fill="none" stroke="#000000" stroke-width="1.2" marker-end="url(#arD)"/>
+<line x1="1118" y1="628" x2="1204" y2="628" stroke="#000000" stroke-width="1.2"/>
+<text x="1160" y="622" font-size="12" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" text-anchor="middle" style="fill:#000000">h<tspan font-size="8" dy="3">n</tspan></text>
+<rect x="964" y="396" width="28" height="256" rx="5" fill="#F6D58E" stroke="#B8860B" stroke-width="1.3" stroke-dasharray="4 3"/>
+<text transform="translate(982,524) rotate(-90)" font-size="10" font-weight="600" text-anchor="middle" style="fill:#000000">DW 3³ · Q, K only</text>
+<rect x="1016" y="396" width="40" height="256" rx="5" fill="#B8A7D9"/>
+<text transform="translate(1033,524) rotate(-90)" font-size="10.5" font-weight="600" text-anchor="middle" style="fill:#000000">cross-modal attention</text>
+<text transform="translate(1047,524) rotate(-90)" font-size="10" text-anchor="middle" style="fill:#000000">self-bias b = 2</text>
+<rect x="1078" y="396" width="40" height="256" rx="5" fill="#D9A5A5"/>
+<text transform="translate(1095,524) rotate(-90)" font-size="10.5" font-weight="600" text-anchor="middle" style="fill:#000000">segmentation head</text>
+<text transform="translate(1109,524) rotate(-90)" font-size="10" text-anchor="middle" style="fill:#000000">shared</text>
+<text x="1160" y="566" font-size="18" font-weight="600" text-anchor="middle" style="fill:#000000">⋮</text>
+<line x1="1204" y1="412" x2="1204" y2="628" stroke="#000000" stroke-width="1.2"/>
+<polyline points="1204,520 1222,520" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)"/>
+<rect x="1224" y="496" width="52" height="48" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"/>
+<text x="1250" y="516" class="small-em" text-anchor="middle">Avg</text>
+<text x="1250" y="532" class="small" text-anchor="middle">over S</text>
+<line x1="1276" y1="520" x2="1290" y2="520" stroke="currentColor" stroke-width="1.2"/>
+<line x1="1290" y1="435" x2="1290" y2="575" stroke="currentColor" stroke-width="1.2"/>
+<polyline points="1290,435 1304,435" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)"/>
+<polyline points="1290,575 1304,575" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)"/>
+<rect x="1306" y="398" width="120" height="74" rx="9" fill="#EDEEF0"/>
+<text x="1366" y="424" class="mathbox" text-anchor="middle">Ŷ<tspan class="sub" dy="5">S</tspan></text>
+<text x="1366" y="444" font-size="10.5" font-weight="600" text-anchor="middle" style="fill:#000000">11 combos</text>
+<text x="1366" y="459" font-size="10" text-anchor="middle" style="fill:#000000">2–4 modalities</text>
+<rect x="1306" y="490" width="120" height="166" rx="9" fill="#D3EEEC" stroke="#1F8A8A" stroke-width="1.5" stroke-dasharray="5 3"/>
+<text x="1366" y="506" font-size="10.5" font-weight="600" text-anchor="middle" style="fill:#000000">4 single-modality</text>
+<text x="1366" y="520" font-size="10.5" font-weight="600" text-anchor="middle" style="fill:#000000">outputs s</text>
+<rect x="1318" y="527" width="96" height="26" rx="6" fill="#E3B7B7"/>
+<text x="1366" y="544" font-size="10.5" font-weight="500" text-anchor="middle" style="fill:#000000">FLAIR only</text>
+<rect x="1318" y="558" width="96" height="26" rx="6" fill="#F5C9A6"/>
+<text x="1366" y="575" font-size="10.5" font-weight="500" text-anchor="middle" style="fill:#000000">T1c only</text>
+<rect x="1318" y="589" width="96" height="26" rx="6" fill="#C7D8EE"/>
+<text x="1366" y="606" font-size="10.5" font-weight="500" text-anchor="middle" style="fill:#000000">T1 only</text>
+<rect x="1318" y="620" width="96" height="26" rx="6" fill="#FBE7A3"/>
+<text x="1366" y="637" font-size="10.5" font-weight="500" text-anchor="middle" style="fill:#000000">T2 only</text>
+<line x1="1426" y1="435" x2="1444" y2="435" stroke="currentColor" stroke-width="1.2"/>
+<line x1="1426" y1="575" x2="1444" y2="575" stroke="currentColor" stroke-width="1.2"/>
+<line x1="1444" y1="435" x2="1444" y2="575" stroke="currentColor" stroke-width="1.2"/>
+<line x1="1444" y1="463" x2="1510" y2="463" stroke="currentColor" stroke-width="1.2"/>
+<text x="1478" y="456" class="small-em" text-anchor="middle">all 15</text>
+<rect x="1458" y="482" width="40" height="34" rx="7" fill="#EDEEF0"/>
+<text x="1478" y="505" class="mathbox" text-anchor="middle">Y</text>
+<line x1="1498" y1="499" x2="1510" y2="499" stroke="currentColor" stroke-width="1.2"/>
+<line x1="1510" y1="421" x2="1510" y2="505" stroke="currentColor" stroke-width="1.2"/>
+<polyline points="1510,421 1528,421" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)"/>
+<polyline points="1510,505 1528,505" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#arK)"/>
+<rect x="1530" y="392" width="76" height="58" rx="9" fill="#EBDCA6"/>
+<text x="1556" y="428" class="loss" text-anchor="middle">ℒ</text><text x="1565" y="432" class="loss-sub" text-anchor="start">dice</text>
+<rect x="1530" y="476" width="76" height="58" rx="9" fill="#E2CBE8"/>
+<text x="1556" y="512" class="loss" text-anchor="middle">ℒ</text><text x="1565" y="516" class="loss-sub" text-anchor="start">HD</text>
+<polyline points="570,660 570,792 1528,792" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#arK)"/>
+<rect x="1530" y="763" width="76" height="58" rx="9" fill="#BFE4E0"/>
+<text x="1556" y="799" class="loss" text-anchor="middle">ℒ</text><text x="1565" y="803" class="loss-sub" text-anchor="start">MI</text>
+<!-- Attempt 2: GSS branch (training only) -->
+<polyline points="1426,625 1528,625" fill="none" stroke="#1F8A8A" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arGssT)"/>
+<text x="1477" y="618" font-size="10.5" font-weight="500" text-anchor="middle" style="fill:#1F8A8A">prediction</text>
+<rect x="1530" y="596" width="76" height="58" rx="9" fill="#D3EEEC" stroke="#1F8A8A" stroke-width="1.5" stroke-dasharray="5 3"/>
+<text x="1552" y="632" class="loss" text-anchor="middle">ℒ</text><text x="1561" y="636" class="loss-sub" text-anchor="start">GSS</text>
+<polyline points="1400,656 1400,700" fill="none" stroke="#1F8A8A" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arGssT)"/>
+<text x="1408" y="683" font-size="10.5" font-weight="600" text-anchor="start" style="fill:#C0392B">✕ no backprop</text>
+<rect x="1340" y="702" width="180" height="62" rx="9" fill="#D3EEEC" stroke="#1F8A8A" stroke-width="1.5" stroke-dasharray="5 3"/>
+<text x="1430" y="721" font-size="12.5" font-weight="600" text-anchor="middle" style="fill:#1D2230">GSS vote (Fig. 3)</text>
+<text x="1430" y="738" font-size="10.5" text-anchor="middle" style="fill:#1D2230">T1c leads TC, ET</text>
+<text x="1430" y="753" font-size="10.5" text-anchor="middle" style="fill:#1D2230">FLAIR + T2 lead WT</text>
+<polyline points="1520,733 1556,733 1556,656" fill="none" stroke="#1F8A8A" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arGssT)"/>
+<text x="1562" y="695" font-size="10.5" font-weight="500" text-anchor="start" style="fill:#1F8A8A">voted</text>
+<text x="1562" y="709" font-size="10.5" font-weight="500" text-anchor="start" style="fill:#1F8A8A">result</text>
+<!-- L_GSS gradient. A one-modality subset has alpha = 1, so Q, K and DW get none of it. -->
+<polyline points="1320,656 1320,716 381,716" fill="none" stroke="#C0392B" stroke-width="1.8"/>
+<polyline points="1098,716 1098,674" fill="none" stroke="#C0392B" stroke-width="1.8" marker-end="url(#arGrad)"/>
+<polyline points="742,716 742,655" fill="none" stroke="#C0392B" stroke-width="1.8" marker-end="url(#arGrad)"/>
+<polyline points="381,716 381,655" fill="none" stroke="#C0392B" stroke-width="1.8" marker-end="url(#arGrad)"/>
+<text x="1106" y="690" font-size="10.5" font-weight="600" text-anchor="start" style="fill:#C0392B">V, W<tspan font-size="8" dy="3">O</tspan><tspan dy="-3">, seg. head</tspan></text>
+<text x="750" y="690" font-size="10.5" font-weight="600" text-anchor="start" style="fill:#C0392B">decoder</text>
+<text x="389" y="690" font-size="10.5" font-weight="600" text-anchor="start" style="fill:#C0392B">encoder</text>
+<text x="944" y="688" font-size="10.5" font-weight="600" text-anchor="start" style="fill:#C0392B">✕ DW, Q, K</text>
+<text x="944" y="702" font-size="10" text-anchor="start" style="fill:#C0392B">one modality: α = 1</text>
+<text x="860" y="732" font-size="11" font-weight="600" text-anchor="middle" style="fill:#C0392B">ℒ<tspan font-size="8" dy="3">GSS</tspan><tspan dy="-3"> backpropagation</tspan></text>
+<!-- legend -->
+<rect x="1322" y="18" width="298" height="314" rx="14" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".45"/>
+<text x="1342" y="50" class="panel-sm" text-anchor="start">One training step</text>
+<polyline points="1342,76 1384,76" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#arK)"/>
+<text x="1394" y="80" class="leg" text-anchor="start">Forward, all 15 combos</text>
+<polyline points="1342,102 1384,102" fill="none" stroke="#1F8A8A" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arGssT)"/>
+<text x="1394" y="106" class="leg" text-anchor="start">GSS, training only</text>
+<polyline points="1384,128 1342,128" fill="none" stroke="#C0392B" stroke-width="1.8" marker-end="url(#arGrad)"/>
+<text x="1394" y="132" class="leg" style="fill:#C0392B;font-weight:600">Backpropagation of ℒ<tspan font-size="8" dy="3">GSS</tspan></text>
+<text x="1363" y="158" font-size="13" font-weight="600" text-anchor="middle" style="fill:#C0392B">✕</text>
+<text x="1394" y="158" class="leg" style="fill:#C0392B;font-weight:600">No backpropagation here</text>
+<line x1="1342" y1="172" x2="1600" y2="172" stroke="currentColor" stroke-width="1" opacity=".3"/>
+<text x="1342" y="196" class="eqtext">ℒ<tspan class="sub" dy="4">All</tspan><tspan dy="-4"> = 0.7 (ℒ</tspan><tspan class="sub" dy="4">dice</tspan><tspan dy="-4"> + ℒ</tspan><tspan class="sub" dy="4">HD</tspan><tspan dy="-4"> + ℒ</tspan><tspan class="sub" dy="4">MI</tspan><tspan dy="-4">)</tspan></text>
+<text x="1372" y="216" class="eqtext">+ 0.3 τ² ℒ<tspan class="sub" dy="4">GSS</tspan><tspan dy="-4">,   τ = 8</tspan></text>
+<line x1="1342" y1="232" x2="1600" y2="232" stroke="currentColor" stroke-width="1" opacity=".3"/>
+<text x="1342" y="254" class="leg">ℒ<tspan font-size="8" dy="3">dice</tspan><tspan dy="-3"> and ℒ</tspan><tspan font-size="8" dy="3">HD</tspan><tspan dy="-3"> backpropagate to every layer.</tspan></text>
+<text x="1342" y="278" class="leg">Test: GSS is off. Only the Ŷ<tspan font-size="8" dy="3">S</tspan><tspan dy="-3"> of the modalities</tspan></text>
+<text x="1342" y="294" class="leg" text-anchor="start">that are present is used.</text>
 <polyline points="60,332 296,380" stroke="#8FB3D9" stroke-width="1.1" stroke-dasharray="4 4" opacity="1" fill="none"/>
 <polyline points="470,332 466,404" stroke="#8FB3D9" stroke-width="1.1" stroke-dasharray="4 4" opacity="1" fill="none"/>
 <polyline points="575,332 570,378" stroke="#5FB3BA" stroke-width="1.6" marker-end="url(#arT)" opacity="1" fill="none"/>
@@ -457,17 +489,17 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
 <polyline points="946,332 907,388" stroke="#D9A5A5" stroke-width="1.6" marker-end="url(#arR)" opacity="1" fill="none"/>
       </svg>
     </div>
-    <figcaption><b>Fig. 1 重繪。</b>每個模態 <span class="eq">x<sub>i</sub></span> 獨立通過<b>同一個</b> Encoder / Decoder（權重共用），得 bottleneck 特徵 <span class="eq">d<sub>i</sub></span> 與 decoder 末層特徵 <span class="eq">f<sub>i</sub></span>（16 ch @ 128³）。DC 只取仍存在的模態：token = <span class="eq">f<sub>i</sub>+e<sub>i</sub></span>，<span class="eq">Q = W<sub>Q</sub>·DW(f<sub>i</sub>+e<sub>i</sub>)</span>、<span class="eq">K = W<sub>K</sub>·DW(f<sub>i</sub>+e<sub>i</sub>)</span>、<span class="eq">V = W<sub>V</sub>(f<sub>i</sub>+e<sub>i</sub>)</span>，<span class="eq">α = softmax(QK<sup>T</sup>/√d + b·I)</span>，<span class="eq">f<sub>i</sub>′ = f<sub>i</sub> + O(Σ<sub>j</sub> α<sub>ij</sub> V<sub>j</sub>)</span>，再過共用 OutConv 得 <span class="eq">h<sub>i</sub>′</span>，均勻平均成 <span class="eq">Ŷ</span>，與 <span class="eq">Y</span> 算 <span class="eq">ℒ</span><sub>dice</sub> 與 <span class="eq">ℒ</span><sub>HD</sub>。DW 為 depthwise 3×3×3 conv（每通道各自做空間加權和，ConvNeXt / MedNeXt 的空間混合層），初始化為 identity（中心 1、其餘 0），所以起點與 v1 + self-bias 完全相同；<span class="eq">O</span> 零初始化，所以起點也等於 baseline。右上 inset：<span class="eq">d<sub>f</sub></span> = Avg(<span class="eq">d</span><sub>1..n</sub>)，每個 <span class="eq">d<sub>i</sub></span> 與它計算 <span class="eq">ℒ</span><sub>MI</sub>。</figcaption>
+    <figcaption><b>Fig. 1 重繪。</b>每個模態 <span class="eq">x<sub>i</sub></span> 獨立通過<b>同一個</b> Encoder / Decoder（權重共用），得 bottleneck 特徵 <span class="eq">d<sub>i</sub></span> 與 decoder 末層特徵 <span class="eq">f<sub>i</sub></span>（16 ch @ 128³）。DC 只取仍存在的模態：token = <span class="eq">f<sub>i</sub>+e<sub>i</sub></span>，<span class="eq">Q = W<sub>Q</sub>·DW(f<sub>i</sub>+e<sub>i</sub>)</span>、<span class="eq">K = W<sub>K</sub>·DW(f<sub>i</sub>+e<sub>i</sub>)</span>、<span class="eq">V = W<sub>V</sub>(f<sub>i</sub>+e<sub>i</sub>)</span>，<span class="eq">α = softmax(QK<sup>T</sup>/√d + b·I)</span>，<span class="eq">f<sub>i</sub>′ = f<sub>i</sub> + W<sub>O</sub>(Σ<sub>j</sub> α<sub>ij</sub> V<sub>j</sub>)</span>，再過共用的 segmentation head 得 <span class="eq">h<sub>i</sub>′</span>，對子集 <span class="eq">S</span> 取平均成 <span class="eq">Ŷ<sub>S</sub></span>。整段 DC 對 15 個子集各做一次，全部 15 組輸出都與 <span class="eq">Y</span> 算 <span class="eq">ℒ</span><sub>dice</sub> 與 <span class="eq">ℒ</span><sub>HD</sub>。DW 為 depthwise 3×3×3 conv（每通道各自做空間加權和，ConvNeXt / MedNeXt 的空間混合層），初始化為 identity（中心 1、其餘 0），所以起點與 v1 + self-bias 完全相同；<span class="eq">W<sub>O</sub></span> 零初始化，所以起點也等於 baseline。青色虛線是 Attempt 2 的 GSS 分支，只在訓練時使用：從 15 組中取出 4 組單模態輸出，投票後教回這 4 組（見 Fig. 3）。紅線是 <span class="eq">ℒ</span><sub>GSS</sub> 的反向傳播，標出它更新到的層：V、W<sub>O</sub>、segmentation head、decoder、encoder。✕ 表示反向傳播不經過：投票結果是固定答案，只有學生朝答案調整；單模態時 <span class="eq">α</span> = 1，所以 DW、Q、K 也不會被更新，它們由 11 組多模態組合的 <span class="eq">ℒ</span><sub>dice</sub> 與 <span class="eq">ℒ</span><sub>HD</sub> 訓練。右上 inset：<span class="eq">d<sub>f</sub></span> = Avg(<span class="eq">d</span><sub>1..n</sub>)，每個 <span class="eq">d<sub>i</sub></span> 與它計算 <span class="eq">ℒ</span><sub>MI</sub>。</figcaption>
   </figure>
   <figure style="margin-top:18px">
     <div class="scroll">
-<svg class="fig fig2" viewBox="0 0 1180 372" role="img" aria-label="DC 模組放大圖：每個 voxel 上，存活模態的 token f_i+e_i 經 depthwise 3×3×3（新增）與 1×1 投影得到 Q、K，V 只經 1×1；分數 QKᵀ/√d 加上對角線 self-bias b=2 後逐列 softmax 得到權重 α，缺失模態整列整欄移除；Σ α V 經零初始化的 O 後殘差加回 f_i，再經共用 OutConv 得 h_i′，對存活模態取平均得 Ŷ。" xmlns="http://www.w3.org/2000/svg">
+<svg class="fig fig2" viewBox="0 0 1180 372" role="img" aria-label="DC 模組放大圖：每個 voxel 上，存活模態的 token f_i+e_i 經 depthwise 3×3×3（新增）與 1×1 投影得到 Q、K，V 只經 1×1；分數 QKᵀ/√d 加上對角線 self-bias b=2 後逐列 softmax 得到權重 α，缺失模態整列整欄移除；Σ α V 經零初始化的 W_O 後殘差加回 f_i，再經共用的 segmentation head 得 h_i′，對存活模態取平均得 Ŷ。" xmlns="http://www.w3.org/2000/svg">
 <defs><marker id="z2arK" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker><marker id="z2arO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#B8860B"/></marker><pattern id="z2hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#E6E8EC"/><line x1="0" y1="0" x2="0" y2="6" stroke="#B9BEC7" stroke-width="2"/></pattern></defs>
 <text x="84" y="32" font-size="13" text-anchor="middle" font-weight="600">① 每個 voxel 的 token</text>
 <text x="330" y="32" font-size="13" text-anchor="middle" font-weight="600">② 投影（Q、K 先過 DW）</text>
 <text x="650" y="32" font-size="13" text-anchor="middle" font-weight="600">③ 分數 + self-bias → softmax</text>
 <text x="905" y="32" font-size="13" text-anchor="middle" font-weight="600">④ 混合 + 殘差</text>
-<text x="1105" y="32" font-size="13" text-anchor="middle" font-weight="600">⑤ OutConv + 平均</text>
+<text x="1105" y="32" font-size="13" text-anchor="middle" font-weight="600">⑤ Seg. head + 平均</text>
 <line x1="20" y1="44" x2="1160" y2="44" stroke="currentColor" stroke-width="1" opacity=".25"/>
 <rect x="24" y="64" width="120" height="42" rx="8" fill="#E3B7B7" stroke="none" stroke-width="1.2"/>
 <text x="84" y="85" font-size="15" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">f<tspan font-size="10" dy="4">1</tspan><tspan dy="-4"></tspan> + e<tspan font-size="10" dy="4">1</tspan><tspan dy="-4"></tspan></text>
@@ -591,7 +623,7 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
 <text x="520" y="252" font-size="12" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic">V</text>
 <polyline points="890,150 918,150" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#z2arK)"/>
 <rect x="920" y="130" width="52" height="40" rx="8" fill="#FFFFFF" stroke="#1D2230" stroke-width="1.2"/>
-<text x="946" y="148" font-size="15" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">O</text>
+<text x="946" y="148" font-size="15" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">W<tspan font-size="9" dy="3">O</tspan></text>
 <text x="946" y="163" font-size="9.5" text-anchor="middle" opacity=".75" style="fill:#1D2230">1×1</text>
 <text x="946" y="188" font-size="10" text-anchor="middle" opacity=".8">zero-init</text>
 <polyline points="972,150 993,150" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#z2arK)"/>
@@ -602,7 +634,7 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
 <polyline points="1016,150 1046,150" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#z2arK)"/>
 <text x="1031" y="142" font-size="12" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic">f<tspan font-size="10" dy="4">i</tspan><tspan dy="-4">′</tspan></text>
 <rect x="1048" y="128" width="114" height="44" rx="8" fill="#D9A5A5" stroke="none" stroke-width="1.2"/>
-<text x="1105" y="148" font-size="12.5" text-anchor="middle" font-weight="600" style="fill:#1D2230">OutConv</text>
+<text x="1105" y="148" font-size="12.5" text-anchor="middle" font-weight="600" style="fill:#1D2230">Seg. head</text>
 <text x="1105" y="163" font-size="9.5" text-anchor="middle" opacity=".8" style="fill:#1D2230">共用 1×1 → 3 類</text>
 <polyline points="1105,172 1105,202" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#z2arK)"/>
 <rect x="1070" y="204" width="70" height="36" rx="8" fill="#E3B7B7" stroke="none" stroke-width="1.2"/>
@@ -616,9 +648,226 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
 <text x="905" y="256" font-size="10.5" text-anchor="middle" opacity=".85">Q、K、DW 不起作用）</text>
 </svg>
     </div>
-    <figcaption><b>Fig. 2 · DC 模組放大。</b>以單一 voxel、FLAIR / T1c / T1 存活（T2 缺失）為例。① 每個存活模態一個 token <span class="eq">f<sub>i</sub>+e<sub>i</sub></span>；② Q、K 先經 <b>depthwise 3×3×3（新增，Attempt 1）</b>再經 1×1 投影，V 只經 1×1；③ 分數 <span class="eq">QK<sup>T</sup>/√d</span> 在對角線加上固定 self-bias <span class="eq">b = 2</span>，逐列 softmax 成權重 <span class="eq">α</span>（缺失模態整列整欄移除）；④ <span class="eq">f<sub>i</sub>′ = f<sub>i</sub> + O(Σ<sub>j</sub> α<sub>ij</sub>V<sub>j</sub>)</span>，<span class="eq">O</span> 零初始化、DW 為 identity 初始化，所以訓練起點等於 baseline；⑤ 共用 OutConv 得 <span class="eq">h<sub>i</sub>′</span>，對存活模態取平均得 <span class="eq">Ŷ</span>。</figcaption>
+    <figcaption><b>Fig. 2 · DC 模組放大。</b>以單一 voxel、FLAIR / T1c / T1 存活（T2 缺失）為例。① 每個存活模態一個 token <span class="eq">f<sub>i</sub>+e<sub>i</sub></span>；② Q、K 先經 <b>depthwise 3×3×3（新增，Attempt 1）</b>再經 1×1 投影，V 只經 1×1；③ 分數 <span class="eq">QK<sup>T</sup>/√d</span> 在對角線加上固定 self-bias <span class="eq">b = 2</span>，逐列 softmax 成權重 <span class="eq">α</span>（缺失模態整列整欄移除）；④ <span class="eq">f<sub>i</sub>′ = f<sub>i</sub> + W<sub>O</sub>(Σ<sub>j</sub> α<sub>ij</sub>V<sub>j</sub>)</span>，<span class="eq">W<sub>O</sub></span> 零初始化、DW 為 identity 初始化，所以訓練起點等於 baseline；⑤ 共用的 segmentation head 得 <span class="eq">h<sub>i</sub>′</span>，對存活模態取平均得 <span class="eq">Ŷ</span>。</figcaption>
   </figure>
 
+
+  <section>
+    <h2>Attempt 2：把 GSS 放進 HD<span class="tag">訓練中</span></h2>
+    <p class="lede">問題：TC 只進步 +0.05，沒有 T1c 的 7 組平均只有 76.9，其中只有 T1 最低（70.1）。融合只能分享現有模態的資訊，所以這次不改 DC，改成在訓練時讓弱的模態向 T1c 學。</p>
+  <figure>
+    <div class="scroll">
+<svg class="fig fig2" viewBox="0 0 1180 470" role="img" aria-label="GSS 放大圖：四個單模態組合的輸出當學生；依 WT、TC、ET 三個通道分組，TC 與 ET 由 T1c 當組長，WT 由 FLAIR 與 T2 當組長；逐 voxel 投票得到軟標籤 S_GSS，隨機遮罩 20% 後以 KL 蒸餾回四個學生，只在訓練時使用。" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="z3arK" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker><marker id="z3arT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1F8A8A"/></marker></defs>
+<text x="100" y="32" font-size="13" text-anchor="middle" font-weight="600">① 學生：單模態輸出</text>
+<text x="415" y="32" font-size="13" text-anchor="middle" font-weight="600">② 依區域分組（T1c 帶 TC、ET）</text>
+<text x="745" y="32" font-size="13" text-anchor="middle" font-weight="600">③ 逐 voxel 投票</text>
+<text x="950" y="32" font-size="13" text-anchor="middle" font-weight="600">④ 隨機遮罩</text>
+<text x="1098" y="32" font-size="13" text-anchor="middle" font-weight="600">⑤ 蒸餾</text>
+<polyline points="20,44 1160,44" fill="none" stroke="currentColor" stroke-width="1"/>
+<rect x="24" y="62" width="152" height="50" rx="8" fill="#E3B7B7" stroke="none" stroke-width="1.2"/>
+<text x="100" y="84" font-size="15" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">s<tspan font-size="10" dy="4">Fl</tspan></text>
+<text x="100" y="103" font-size="10.5" text-anchor="middle" opacity=".8" style="fill:#1D2230">只有 FLAIR 時的輸出</text>
+<polyline points="176,87 214,87" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<rect x="24" y="128" width="152" height="50" rx="8" fill="#F5C9A6" stroke="none" stroke-width="1.2"/>
+<text x="100" y="150" font-size="15" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">s<tspan font-size="10" dy="4">T1c</tspan></text>
+<text x="100" y="169" font-size="10.5" text-anchor="middle" opacity=".8" style="fill:#1D2230">只有 T1c 時的輸出</text>
+<polyline points="176,153 214,153" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<rect x="24" y="194" width="152" height="50" rx="8" fill="#C8D9EE" stroke="none" stroke-width="1.2"/>
+<text x="100" y="216" font-size="15" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">s<tspan font-size="10" dy="4">T1</tspan></text>
+<text x="100" y="235" font-size="10.5" text-anchor="middle" opacity=".8" style="fill:#1D2230">只有 T1 時的輸出</text>
+<polyline points="176,219 214,219" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<rect x="24" y="260" width="152" height="50" rx="8" fill="#FBE7A3" stroke="none" stroke-width="1.2"/>
+<text x="100" y="282" font-size="15" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">s<tspan font-size="10" dy="4">T2</tspan></text>
+<text x="100" y="301" font-size="10.5" text-anchor="middle" opacity=".8" style="fill:#1D2230">只有 T2 時的輸出</text>
+<polyline points="176,285 214,285" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<polyline points="214,87 214,285" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<text x="100" y="328" font-size="10.5" text-anchor="middle" opacity=".85">15 組輸出的最後 4 組</text>
+<text x="100" y="344" font-size="10.5" text-anchor="middle" opacity=".85">已經算好，不用多跑前向</text>
+<polyline points="214,186 252,186" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#z3arK)"/>
+<rect x="180" y="196" width="72" height="20" rx="10" fill="var(--panel)" stroke="#C0392B" stroke-width="1"/>
+<text x="216" y="210" font-size="9" text-anchor="middle" font-weight="600" style="fill:#C0392B">✕ no backprop</text>
+<rect x="256" y="62" width="318" height="84" rx="8" fill="#EBDCA6" stroke="none" stroke-width="1.2"/>
+<text x="270" y="84" font-size="13" text-anchor="start" font-weight="700" style="fill:#1D2230">WT</text>
+<circle cx="350" cy="90" r="20" fill="#1D2230"/>
+<text x="350" y="94" font-size="10.5" text-anchor="middle" font-weight="700" style="fill:#FFFFFF">FLAIR</text>
+<circle cx="400" cy="90" r="20" fill="#1D2230"/>
+<text x="400" y="94" font-size="10.5" text-anchor="middle" font-weight="700" style="fill:#FFFFFF">T2</text>
+<circle cx="450" cy="90" r="17" fill="#FFFFFF" stroke="#1D2230" stroke-width="1.1"/>
+<text x="450" y="94" font-size="10" text-anchor="middle" style="fill:#1D2230">T1c</text>
+<circle cx="494" cy="90" r="17" fill="#FFFFFF" stroke="#1D2230" stroke-width="1.1"/>
+<text x="494" y="94" font-size="10" text-anchor="middle" style="fill:#1D2230">T1</text>
+<text x="270" y="106" font-size="10" text-anchor="start" opacity=".8" style="fill:#1D2230">2 位組長</text>
+<text x="270" y="133" font-size="10" text-anchor="start" opacity=".8" style="fill:#1D2230">我們的改寫：GSS 的 ED → WT</text>
+<polyline points="574,104 606,104" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<rect x="256" y="156" width="318" height="84" rx="8" fill="#E2CBE8" stroke="none" stroke-width="1.2"/>
+<text x="270" y="178" font-size="13" text-anchor="start" font-weight="700" style="fill:#1D2230">TC</text>
+<circle cx="350" cy="184" r="20" fill="#1D2230"/>
+<text x="350" y="188" font-size="10.5" text-anchor="middle" font-weight="700" style="fill:#FFFFFF">T1c</text>
+<circle cx="408" cy="184" r="17" fill="#FFFFFF" stroke="#1D2230" stroke-width="1.1"/>
+<text x="408" y="188" font-size="10" text-anchor="middle" style="fill:#1D2230">FLAIR</text>
+<circle cx="452" cy="184" r="17" fill="#FFFFFF" stroke="#1D2230" stroke-width="1.1"/>
+<text x="452" y="188" font-size="10" text-anchor="middle" style="fill:#1D2230">T1</text>
+<circle cx="496" cy="184" r="17" fill="#FFFFFF" stroke="#1D2230" stroke-width="1.1"/>
+<text x="496" y="188" font-size="10" text-anchor="middle" style="fill:#1D2230">T2</text>
+<text x="270" y="200" font-size="10" text-anchor="start" opacity=".8" style="fill:#1D2230">1 位組長</text>
+<text x="270" y="227" font-size="10" text-anchor="start" opacity=".8" style="fill:#1D2230">對應 GSS 的 NCR/NET + ET</text>
+<polyline points="574,198 606,198" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<rect x="256" y="250" width="318" height="84" rx="8" fill="#F5C9A6" stroke="none" stroke-width="1.2"/>
+<text x="270" y="272" font-size="13" text-anchor="start" font-weight="700" style="fill:#1D2230">ET</text>
+<circle cx="350" cy="278" r="20" fill="#1D2230"/>
+<text x="350" y="282" font-size="10.5" text-anchor="middle" font-weight="700" style="fill:#FFFFFF">T1c</text>
+<circle cx="408" cy="278" r="17" fill="#FFFFFF" stroke="#1D2230" stroke-width="1.1"/>
+<text x="408" y="282" font-size="10" text-anchor="middle" style="fill:#1D2230">FLAIR</text>
+<circle cx="452" cy="278" r="17" fill="#FFFFFF" stroke="#1D2230" stroke-width="1.1"/>
+<text x="452" y="282" font-size="10" text-anchor="middle" style="fill:#1D2230">T1</text>
+<circle cx="496" cy="278" r="17" fill="#FFFFFF" stroke="#1D2230" stroke-width="1.1"/>
+<text x="496" y="282" font-size="10" text-anchor="middle" style="fill:#1D2230">T2</text>
+<text x="270" y="294" font-size="10" text-anchor="start" opacity=".8" style="fill:#1D2230">1 位組長</text>
+<text x="270" y="321" font-size="10" text-anchor="start" opacity=".8" style="fill:#1D2230">同 GSS</text>
+<polyline points="574,292 606,292" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<polyline points="252,104 252,292" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<polyline points="252,104 255,104" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#z3arK)"/>
+<polyline points="252,198 255,198" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#z3arK)"/>
+<polyline points="252,292 255,292" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#z3arK)"/>
+<polyline points="606,104 606,292" fill="none" stroke="currentColor" stroke-width="1.4"/>
+<polyline points="606,186 628,186" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#z3arK)"/>
+<circle cx="276" cy="358" r="9" fill="#1D2230"/>
+<text x="292" y="362" font-size="10.5" text-anchor="start">組長：對這個區域較敏感，門檻較低</text>
+<circle cx="276" cy="382" r="8" fill="#FFFFFF" stroke="currentColor" stroke-width="1.1"/>
+<text x="292" y="386" font-size="10.5" text-anchor="start">組員：門檻較高，組長猶豫時才投票</text>
+<rect x="630" y="62" width="232" height="272" rx="8" fill="var(--panel)" stroke="currentColor" stroke-width="1.1"/>
+<text x="644" y="84" font-size="12" text-anchor="start" font-weight="600">一位組長（TC、ET）</text>
+<text x="644" y="106" font-size="11" text-anchor="start">組長 &gt; T<tspan font-size="8" dy="3">L</tspan><tspan dy="-3"> </tspan></text>
+<text x="848" y="106" font-size="11" text-anchor="end">→ 用組長</text>
+<text x="644" y="127" font-size="11" text-anchor="start">全部組員 &gt; T<tspan font-size="8" dy="3">M</tspan><tspan dy="-3"> </tspan></text>
+<text x="848" y="127" font-size="11" text-anchor="end">→ 組員平均</text>
+<text x="644" y="148" font-size="11" text-anchor="start">其他</text>
+<text x="848" y="148" font-size="11" text-anchor="end">→ 取最小值</text>
+<polyline points="644,174 848,174" fill="none" stroke="currentColor" stroke-width="0.8"/>
+<text x="644" y="196" font-size="12" text-anchor="start" font-weight="600">兩位組長（WT）</text>
+<text x="644" y="218" font-size="11" text-anchor="start">兩位都 &gt; T<tspan font-size="8" dy="3">L</tspan><tspan dy="-3"> </tspan></text>
+<text x="848" y="218" font-size="11" text-anchor="end">→ 取最大值</text>
+<text x="644" y="239" font-size="11" text-anchor="start">只有一位 &gt; T<tspan font-size="8" dy="3">L</tspan><tspan dy="-3"> </tspan></text>
+<text x="848" y="239" font-size="11" text-anchor="end">→ 最大值 − ρ|差|</text>
+<text x="644" y="260" font-size="11" text-anchor="start">組員都 &gt; T<tspan font-size="8" dy="3">M</tspan><tspan dy="-3"> </tspan></text>
+<text x="848" y="260" font-size="11" text-anchor="end">→ 組員平均</text>
+<text x="644" y="281" font-size="11" text-anchor="start">其他</text>
+<text x="848" y="281" font-size="11" text-anchor="end">→ 取最小值</text>
+<text x="746" y="322" font-size="10" text-anchor="middle" opacity=".8">T<tspan font-size="8" dy="3">L</tspan><tspan dy="-3"> = 0.65 · </tspan>T<tspan font-size="8" dy="3">M</tspan><tspan dy="-3"> = 0.75 · ρ = 0.3</tspan></text>
+<polyline points="862,186 888,186" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#z3arK)"/>
+<rect x="890" y="110" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.58"/>
+<rect x="910" y="110" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.61"/>
+<rect x="930" y="110" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.29"/>
+<rect x="950" y="110" width="18" height="18" rx="2" fill="#C9CDD4" fill-opacity="1.00"/>
+<rect x="970" y="110" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.41"/>
+<rect x="990" y="110" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.85"/>
+<rect x="1010" y="110" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.75"/>
+<rect x="890" y="130" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.63"/>
+<rect x="910" y="130" width="18" height="18" rx="2" fill="#C9CDD4" fill-opacity="1.00"/>
+<rect x="930" y="130" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.77"/>
+<rect x="950" y="130" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.69"/>
+<rect x="970" y="130" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.29"/>
+<rect x="990" y="130" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.60"/>
+<rect x="1010" y="130" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.27"/>
+<rect x="890" y="150" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.53"/>
+<rect x="910" y="150" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.78"/>
+<rect x="930" y="150" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.80"/>
+<rect x="950" y="150" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.73"/>
+<rect x="970" y="150" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.81"/>
+<rect x="990" y="150" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.31"/>
+<rect x="1010" y="150" width="18" height="18" rx="2" fill="#C9CDD4" fill-opacity="1.00"/>
+<rect x="890" y="170" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.83"/>
+<rect x="910" y="170" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.63"/>
+<rect x="930" y="170" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.55"/>
+<rect x="950" y="170" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.46"/>
+<rect x="970" y="170" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.60"/>
+<rect x="990" y="170" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.66"/>
+<rect x="1010" y="170" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.76"/>
+<rect x="890" y="190" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.65"/>
+<rect x="910" y="190" width="18" height="18" rx="2" fill="#C9CDD4" fill-opacity="1.00"/>
+<rect x="930" y="190" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.83"/>
+<rect x="950" y="190" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.59"/>
+<rect x="970" y="190" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.38"/>
+<rect x="990" y="190" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.59"/>
+<rect x="1010" y="190" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.29"/>
+<rect x="890" y="210" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.84"/>
+<rect x="910" y="210" width="18" height="18" rx="2" fill="#C9CDD4" fill-opacity="1.00"/>
+<rect x="930" y="210" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.50"/>
+<rect x="950" y="210" width="18" height="18" rx="2" fill="#C9CDD4" fill-opacity="1.00"/>
+<rect x="970" y="210" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.71"/>
+<rect x="990" y="210" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.28"/>
+<rect x="1010" y="210" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.28"/>
+<rect x="890" y="230" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.45"/>
+<rect x="910" y="230" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.84"/>
+<rect x="930" y="230" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.85"/>
+<rect x="950" y="230" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.30"/>
+<rect x="970" y="230" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.27"/>
+<rect x="990" y="230" width="18" height="18" rx="2" fill="#C9CDD4" fill-opacity="1.00"/>
+<rect x="1010" y="230" width="18" height="18" rx="2" fill="#6E4FB8" fill-opacity="0.62"/>
+<text x="959" y="96" font-size="13" text-anchor="middle" font-weight="600" font-family="IBM Plex Serif,Georgia,serif" font-style="italic">S<tspan font-size="9" dy="3">GSS</tspan></text>
+<text x="959" y="270" font-size="10.5" text-anchor="middle" opacity=".85">灰色 = 不蒸餾</text>
+<text x="959" y="286" font-size="10.5" text-anchor="middle" opacity=".85">遮罩率 20%</text>
+<text x="959" y="302" font-size="10.5" text-anchor="middle" opacity=".85">師生遮同一位置</text>
+<polyline points="1032,186 1046,186" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#z3arK)"/>
+<rect x="1048" y="148" width="104" height="76" rx="8" fill="#D3EEEC" stroke="#1F8A8A" stroke-width="1.5" stroke-dasharray="5 3"/>
+<text x="1100" y="176" font-size="19" text-anchor="middle" font-family="IBM Plex Serif,Georgia,serif" font-style="italic" style="fill:#1D2230">ℒ</text>
+<text x="1110" y="180" font-size="10.5" style="fill:#1D2230">GSS</text>
+<text x="1100" y="196" font-size="10.5" text-anchor="middle" style="fill:#1D2230">binary KL</text>
+<text x="1100" y="212" font-size="10.5" text-anchor="middle" style="fill:#1D2230">τ = 8</text>
+<polyline points="1100,224 1100,420 100,420 100,362" fill="none" stroke="#1F8A8A" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#z3arT)"/>
+<text x="600" y="412" font-size="11.5" text-anchor="middle" font-weight="600" style="fill:#1F8A8A">軟標籤拉回 4 個學生；例如只有 T1 的輸出，向 T1c 帶領的 TC 軟標籤學習</text>
+<text x="600" y="446" font-size="11" text-anchor="middle" opacity=".85">只在訓練時使用 · 沒有新增參數 · 測試流程完全不變 · 參數值為 GSS 論文的最佳值，尚未在 HD 上調整</text>
+</svg>
+    </div>
+    <figcaption><b>Fig. 3 · GSS 放大。</b>GSS（Category Aware Group Self-Support Learning）不用額外的 teacher 網路，而是讓模態互相投票。各區域由敏感的模態當組長，投票結果 <span class="eq">S<sub>GSS</sub></span> 是固定答案（軟標籤），反向傳播不經過投票路徑（✕），只有每個單模態輸出 <span class="eq">s<sub>i</sub></span> 朝答案調整。總損失：<span class="eq">ℒ<sub>All</sub> = 0.7 (ℒ<sub>dice</sub> + ℒ<sub>HD</sub> + ℒ<sub>MI</sub>) + 0.3 τ² ℒ<sub>GSS</sub></span>（GSS Eq. 3，τ = 8）。</figcaption>
+  </figure>
+    <div class="tablewrap"><table class="compare" style="margin-top:14px">
+      <tr><th>項目</th><th>GSS 原版（RFNet / mmFormer）</th><th>放進 HD 的做法</th></tr>
+      <tr><td>輸出形式</td><td>BG / NCR/NET / ED / ET 四類互斥，softmax</td><td>WT / TC / ET 三通道互相重疊，sigmoid；<b>每個通道各自投票</b></td></tr>
+      <tr><td>組長</td><td>T1c：NCR/NET、ET；FLAIR：BG；FLAIR + T2：ED</td><td>T1c：TC、ET；FLAIR + T2：WT（<b>我們的改寫</b>，待驗證）</td></tr>
+      <tr><td>學生</td><td>各模態 decoder 的預測</td><td>15 組輸出中的 4 個單模態組合</td></tr>
+      <tr><td>正規化</td><td>類別間向量正規化</td><td>通道互相獨立，不需要</td></tr>
+      <tr><td>蒸餾損失</td><td>softmax KL</td><td>每個通道的 binary KL</td></tr>
+      <tr><td>損失權重</td><td>0.7 ℒ<sub>task</sub> + 0.3 τ² ℒ<sub>kd</sub></td><td>相同：0.7 ℒ<sub>task</sub> + 0.3 τ² ℒ<sub>GSS</sub>；ℒ<sub>task</sub> 為 HD 的 15 組加總</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>可詳細研究<span class="tag">待辦</span></h2>
+    <p class="lede">依我們的節奏，每次只改一個地方，跑滿 600 epoch 再做 eval test；每個需要訓練的項目約 3 天。不用訓練的項目可以先做。</p>
+
+    <h3 style="margin:18px 0 6px;font-size:16px">1. self-bias 的最佳設定</h3>
+    <div class="tablewrap"><table class="compare">
+      <tr><th>做法</th><th>內容</th><th>目前證據</th><th>成本</th></tr>
+      <tr><td>固定值掃描</td><td>b = 0 / 1 / 2 / 3 / 4（b = 0 就是 v1）。b 越大，預設越相信自己（b = 2 約 71%，b = 4 約 95%）</td><td>b = 0：80.07；b = 2：80.57（+0.50，仍在 ±1 噪音內）。b = 2 是依 v1 的分數差 1.84 選的，<b>沒有比過其他值</b></td><td>新增 b = 1、3、4 共 3 次訓練</td></tr>
+      <tr><td>可學習（有下限）</td><td>每個模態一個可學習的 b，用 softplus 保證 ≥ 0</td><td>P1 的可學習版本沒有下限，被訓練成 −0.42（反而不看自己），所以才改成固定值</td><td>1 次訓練</td></tr>
+      <tr><td>自適應 self-bias</td><td>b 依每個體素上「存在的模態彼此預測有多不一致」自動調整。各模態的預測本來就算好了，幾乎不增加成本，也不破壞 15 組加速計算</td><td>尚未實作；方向（不一致時要提高還是降低 b）需要先定假設</td><td>實作 + 1 次訓練</td></tr>
+    </table></div>
+    <p class="lede" style="margin-top:8px">建議順序：先做固定值掃描。消融實驗是審查者最可能要求的，也能決定自適應版本的起點。</p>
+
+    <h3 style="margin:18px 0 6px;font-size:16px">2. 架構是否太多：逐一拿掉（leave-one-out）</h3>
+    <div class="tablewrap"><table class="compare">
+      <tr><th>拿掉</th><th>怎麼拿掉</th><th>目前證據</th></tr>
+      <tr><td>ℒ<sub>HD</sub>（Hölder divergence）</td><td>只保留 Dice loss（需要新增開關）</td><td>沒有資料。它是 HD 的核心，<b>拿掉前要先和老師確認</b>，否則論文的基礎就變了</td></tr>
+      <tr><td>ℒ<sub>MI</sub></td><td>MI 權重設為 0（需要新增開關）</td><td>沒有資料。它是目前唯一處理「缺失資訊」的機制（只在 latent）</td></tr>
+      <tr><td>self-bias</td><td><code>model.self_bias=0</code></td><td>疊加方向有：+0.50（v1 → sb2）</td></tr>
+      <tr><td>DW</td><td><code>model.qk_dw_kernel=0</code></td><td>疊加方向有：+0.20（sb2 → dwqk3）</td></tr>
+      <tr><td>GSS</td><td><code>loss.gss.beta=0</code></td><td>就是 dwqk3（80.77）；完整版的 test 結果待出</td></tr>
+    </table></div>
+    <p class="lede" style="margin-top:8px">判斷規則：以完整版為基準，拿掉某個部分後分數變化小於 ±1 分（而且成對檢定不顯著），就考慮刪掉，讓論文更精簡。目前 self-bias 和 DW 的貢獻都在噪音內，這兩個最需要驗證。完整的 leave-one-out 需要 5 次訓練（約 15 天），可以先做 self-bias、DW、GSS 三個不用改程式的。</p>
+
+    <h3 style="margin:18px 0 6px;font-size:16px">3. 其他建議</h3>
+    <div class="tablewrap"><table class="compare">
+      <tr><th>優先</th><th>項目</th><th>為什麼</th><th>成本</th></tr>
+      <tr><td>高</td><td>用逐例 binary Dice（PAMSRecon / RFNet 的算法）重算所有模型</td><td>我們的 soft、每 8 例合併的算法和其他論文不同；同一組預測換算法，ET 可以差 6 分以上。要和別的論文比較就一定要做</td><td>不用訓練</td></tr>
+      <tr><td>高</td><td>逐例成對檢定（Wilcoxon）＋ 多跑 seed</td><td>目前每一步的差距都在 ±1 分內，要證明不是噪音</td><td>檢定不用訓練；seed 每次 3 天</td></tr>
+      <tr><td>中</td><td>重新檢討「選最佳 epoch」的方式</td><td>val 只有 50 例、波動大，而且 val 和 test 多次不一致。可以比較最後一個 epoch、最後幾個 checkpoint 平均的 test 結果</td><td>不用訓練</td></tr>
+      <tr><td>中</td><td>缺 FLAIR 和 T2 時的組合（只有 T1、只有 T1c、T1c+T1）</td><td>這幾組一直是最弱的；GSS 就是針對它，test 結果出來先看這幾組</td><td>不用訓練</td></tr>
+      <tr><td>低</td><td>注意力分支過大（gain 11 到 13，修正量是直接路徑的 8 到 27 倍）</td><td>之前限制它的大小沒有幫助；目前不影響結果，論文中可以當分析或限制來討論</td><td>不用訓練</td></tr>
+      <tr><td>低</td><td>整理參數量與訓練時間表</td><td>論文通常要列；加速計算是我們的賣點，要有數字支持</td><td>不用訓練</td></tr>
+    </table></div>
+  </section>
 
   <section>
     <h2>圖中元件 ↔ 這份 repo 的程式碼</h2>
@@ -630,11 +879,12 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
       <tr><td>Encoder / Decoder</td><td>channel encoder f<sub>i</sub> + 共用 backbone T(·;θ)</td><td><code>unet3d_parallel.py</code>；conv 由 <code>ModuleParallel</code> 共用、GroupNorm 每模態各一組（<code>modules.py:14-21</code>）</td></tr>
       <tr><td>d<sub>i</sub></td><td>第 i 個模態最深層特徵</td><td>bottleneck <code>c5d</code>，128 ch @ 8³（128³ crop）— <code>unet3d_parallel.py:66</code></td></tr>
       <tr><td>d<sub>f</sub></td><td>全模態特徵 = Avg(d<sub>1</sub>…d<sub>n</sub>)</td><td><code>trainer.py:338-339</code></td></tr>
-      <tr><td>f<sub>i</sub></td><td>decoder 末層特徵（OutConv 之前）</td><td>16 ch @ 128³</td></tr>
-      <tr><td>e<sub>i</sub> / Q K V / O</td><td>模態 embedding；單頭 1×1 投影；輸出投影 O（零初始化）</td><td><code>ModalityAttnFusion</code> — <code>modeling/ensemble/fusion.py</code></td></tr>
+      <tr><td>f<sub>i</sub></td><td>decoder 末層特徵（segmentation head 之前）</td><td>16 ch @ 128³</td></tr>
+      <tr><td>e<sub>i</sub> / W<sub>Q</sub> W<sub>K</sub> W<sub>V</sub> / W<sub>O</sub></td><td>模態 embedding；單頭 1×1 投影；輸出投影 W<sub>O</sub>（零初始化）</td><td><code>ModalityAttnFusion</code> — <code>modeling/ensemble/fusion.py</code></td></tr>
       <tr><td>self-bias b</td><td>固定常數（不學習）加在 attention 分數對角線，預設「看自己」</td><td><code>model.self_bias = 2.0</code>（buffer，存在 checkpoint）</td></tr>
-      <tr><td><b>DWConv 3³（新增）</b></td><td>depthwise 3×3×3，只接在 Q、K 的 1×1 投影前；V 不經過</td><td>identity 初始化；參數 2 × 16 × 27 = 864 個</td></tr>
-      <tr><td>DC → Ŷ</td><td>Ŷ = mean<sub>i∈S</sub> h<sub>i</sub>′</td><td>沿用論文的均勻平均</td></tr>
+      <tr><td><b>DWConv 3³</b></td><td>depthwise 3×3×3，只接在 Q、K 的 1×1 投影前；V 不經過</td><td>identity 初始化；參數 2 × 16 × 27 = 864 個</td></tr>
+      <tr><td>ℒ<sub>GSS</sub></td><td>單模態輸出 s<sub>i</sub> 向模態投票結果學習的 KL 蒸餾；梯度不經過 DW、Q、K（單模態 α = 1）</td><td><code>utils/gss.py</code>；權重在 <code>EnumerationLoss</code></td></tr>
+      <tr><td>DC → Ŷ</td><td>Ŷ<sub>S</sub> = mean<sub>i∈S</sub> h<sub>i</sub>′，共 15 組</td><td>沿用論文的均勻平均</td></tr>
       <tr><td>ℒ<sub>dice</sub> + ℒ<sub>HD</sub></td><td>Dice（eq. 6）+ Hölder divergence（eq. 1–2），α = 1.1</td><td><code>DiceCoef</code> — <code>utils/loss.py:49-72</code></td></tr>
       <tr><td>ℒ<sub>MI</sub></td><td>變分互資訊 −log q(d<sub>f</sub> | d<sub>m</sub>)（eq. 4–5）</td><td><code>VIDLoss</code> + <code>Cal_MIloss</code> — <code>utils/loss.py:75-120</code></td></tr>
       <tr><td>ℒ<sub>All</sub></td><td>ℒ<sub>dice</sub> + λ<sub>1</sub>ℒ<sub>MI</sub> + λ<sub>2</sub>ℒ<sub>HD</sub>（eq. 7）</td><td>三項直接相加，λ<sub>1</sub> = λ<sub>2</sub> = 1 — <code>loss.py:39</code></td></tr>
@@ -656,7 +906,7 @@ code { font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; b
     <p class="lede">沿用論文原圖的色彩編碼，方便對照原文。</p>
     <div class="grid">
       <div class="card"><h3><span class="sw" style="background:#C3D9EE"></span>藍 — Encoder 側</h3><p>Encoder 梯形、U-Net inset 的 encoder 特徵圖（<span class="sw" style="background:#8CCBD1"></span>青）與 concat 的 skip 部分。</p></div>
-      <div class="card"><h3><span class="sw" style="background:#D9A5A5"></span>玫瑰 — Decoder 側</h3><p>Decoder 梯形、decoder 特徵圖、up-conv 箭頭，以及 DC 裡共用的 OutConv。</p></div><div class="card"><h3><span class="sw" style="background:#B8A7D9"></span>紫 — 新增的 attention</h3><p>貫穿三列的單頭跨模態 attention（左邊虛線框的黃色長條是新增的 Q/K depthwise conv）；論文原圖沒有這個顏色。</p></div>
+      <div class="card"><h3><span class="sw" style="background:#D9A5A5"></span>玫瑰 — Decoder 側</h3><p>Decoder 梯形、decoder 特徵圖、up-conv 箭頭，以及 DC 裡共用的 segmentation head。</p></div><div class="card"><h3><span class="sw" style="background:#B8A7D9"></span>紫 — 新增的 attention</h3><p>貫穿三列的單頭跨模態 attention（左邊虛線框的黃色長條是新增的 Q/K depthwise conv）；論文原圖沒有這個顏色。</p></div>
       <div class="card"><h3><span class="sw" style="background:#8CCBD1"></span><span class="sw" style="background:#B7C9E8"></span><span class="sw" style="background:#7FA3D0"></span>d<sub>1</sub> / d<sub>2</sub> / d<sub>n</sub></h3><p>同一個 d 在兩個面板用同色，右上 inset 的連線顏色跟著各自的 d<sub>i</sub>。</p></div>
       <div class="card"><h3><span class="sw" style="background:#EBDCA6"></span><span class="sw" style="background:#E2CBE8"></span><span class="sw" style="background:#BFE4E0"></span>三個損失</h3><p>沙色 ℒ<sub>dice</sub>、丁香 ℒ<sub>HD</sub>、薄荷 ℒ<sub>MI</sub>；<span class="sw" style="background:#B9DCA5"></span>綠色是 d<sub>f</sub> 與「d<sub>f</sub> 往各 d<sub>i</sub>」的箭頭。</p></div>
     </div>
