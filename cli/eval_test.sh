@@ -13,6 +13,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# Callers may invoke this outside the venv, so `python` may not be on PATH.
+VENV="$HOME/nthu_sc/bin/activate"
+[ -f "$VENV" ] && source "$VENV"
+command -v python >/dev/null || { echo "python not found (venv: $VENV)" >&2; exit 1; }
+
 CHECKNAME="$1"
 if [ -z "$CHECKNAME" ]; then
     # newest checkname that actually has a best checkpoint
@@ -23,8 +28,17 @@ if [ -z "$CHECKNAME" ]; then
 fi
 [ -n "$CHECKNAME" ] || { echo "no run with model_best.pth found" >&2; exit 1; }
 
-CKPT=$(ls -d results/*/"$CHECKNAME" 2>/dev/null | head -1)/model_best.pth
+RUNDIR=$(ls -d results/*/"$CHECKNAME" 2>/dev/null | head -1)
+CKPT="$RUNDIR/model_best.pth"
 [ -f "$CKPT" ] || { echo "checkpoint not found: $CKPT" >&2; exit 1; }
+
+# This branch is the plain HD baseline (mean fusion only). Checkpoints of the
+# cross-modal attention / gating runs need their own branch to be evaluated.
+if grep -q "'fusion': '\(mattn\|gate\)'" "$RUNDIR"/experiment_*/parameters.txt 2>/dev/null \
+   || [[ "$CHECKNAME" == *-gate* ]]; then
+    echo "$CHECKNAME is not a mean-fusion run; evaluate it on branch crossmodal_atten_v1_dwqk_gss" >&2
+    exit 1
+fi
 
 mkdir -p logs
 TAG=$(date +%m%d)

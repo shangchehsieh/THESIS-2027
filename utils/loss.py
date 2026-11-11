@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+from utils.gss import gss_kd
 
 class SegmentationLosses(object):
     def __init__(self, args, nclass=3, ):
@@ -24,6 +25,7 @@ class SegmentationLosses(object):
     def EnumerationLoss(self, logits, target, df, df_full, weights=None):
         M = len(logits)
         loss = 0.
+        seg = 0.
 
         for l in reversed(range(1, 5)):
             for subset in itertools.combinations(list(range(M)), l):
@@ -37,11 +39,22 @@ class SegmentationLosses(object):
                 MI_pred_mean, MI_log_scale = self.VID_branch(df2)
 
 
-                loss += self.DiceCoef(missing_logits, target) + self.Cal_MIloss(df_full, MI_pred_mean, MI_log_scale)
+                d = self.DiceCoef(missing_logits, target)
+                seg = seg + d
+                loss += d + self.Cal_MIloss(df_full, MI_pred_mean, MI_log_scale)
 
         if self.args.loss.output == 'mean':
             print("self.args.loss.output == 'mean'")
             loss /= len(list(itertools.combinations(list(range(M)), M - self.args.loss.missing_num)))
+
+        gss = self.args.loss.get('gss', None)
+        if gss and gss.beta:
+            # L_all = alpha * L_task + beta * tau^2 * L_kd (GSS, Eq. 3); beta = 0 is off.
+            # A one-modality subset's mean is that stream's own logits, so the students are logits[m].
+            kd = gss_kd(list(logits), gss.tau, gss.t_l, gss.t_m, gss.rho, gss.mask_rate)
+            term = gss.beta * gss.tau ** 2 * kd
+            loss = gss.alpha * loss + term
+            self.gss_stats = {'kd': kd.item(), 'seg': seg.item(), 'term': term.item()}
 
         return loss
 
